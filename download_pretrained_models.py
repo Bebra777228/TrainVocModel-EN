@@ -1,5 +1,5 @@
 import subprocess, os
-pretrained_folder = "/content/pretrained_models/"
+pretrained_folder = "/content/pretrained_models"
 if not os.path.exists(pretrained_folder):
     os.makedirs(pretrained_folder)
 files = {
