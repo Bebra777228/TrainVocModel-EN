@@ -16,6 +16,6 @@ for file, link in files.items():
     file_path = os.path.join(pretrained_folder, file)
     if not os.path.exists(file_path):
         try:
-            subprocess.run(['aria2c', '--console-log-level=error', '-c', '-x', '16', '-s', '16', '-k', '1M', link, '-d', pretrained_folder, '-O', file_path], check=True)
+            subprocess.run(['aria2c', '--console-log-level=error', '-c', '-x', '16', '-s', '16', '-k', '1M', link, '-d', pretrained_folder, '-O', file], check=True)
         except subprocess.CalledProcessError as e:
             print(f"Error downloading {file}: {e}")
