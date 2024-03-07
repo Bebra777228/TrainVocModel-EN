@@ -1,7 +1,7 @@
 import os
 import subprocess
 
-pretrained_folder = "/content/pretrained_models"
+pretrained_folder = "/content/pretrained_models/"
 os.makedirs(pretrained_folder, exist_ok=True)
 
 files = {
