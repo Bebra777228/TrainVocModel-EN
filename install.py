@@ -6,19 +6,31 @@ from rich.console import Console
 
 console = Console()
 
+# Создание виртуального окружения
+print('Создание виртуального окружения...')
+subprocess.check_call(['python', '-m', 'venv', 'env'])
+
+# Активация виртуального окружения
+print('Активация виртуального окружения...')
+activate_this = os.path.join('env', 'bin', 'activate_this.py')
+exec(open(activate_this).read(), dict(__file__=activate_this))
+
 # Установка зависимостей
 print('Установка зависимостей...')
-subprocess.check_call(['apt', 'install', '-y', '-qq', 'aria2', 'wget'], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-
 requirements_file = 'requirements.txt'
 with open(requirements_file, 'r') as f:
     packages = f.read().split('\n')
 
-# Использование кэша pip
+# Использование более быстрого зеркала pip
+pip_index_url = 'https://mirrors.aliyun.com/pypi/simple/'
+
+# Параллельная установка пакетов
+parallel_install = '-j 4'
+
 for package in track(packages, description="Установка пакетов"):
     if package:
         try:
-            subprocess.run(['pip', 'install', '--use-cache', package], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+            subprocess.run(['pip', 'install', '--index-url', pip_index_url, parallel_install, package], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             console.print(f"[red]Error installing {package}: {e}[/red]")
 
@@ -45,8 +57,8 @@ for file, link in track(files.items(), description="Загрузка модел�
     file_path = os.path.join(pretrained_folder, file)
     if not os.path.exists(file_path):
         try:
-            # Параллельная загрузка файлов
-            subprocess.run(['aria2c', '--console-log-level=info', '-c', '-x', '16', '-s', '16', '-k', '1M', '--max-concurrent-downloads=4', link, '-d', pretrained_folder, '-o', file], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+            # Загрузка файла
+            subprocess.run(['aria2c', '-x', '16', '-s', '16', '-k', '1M', link, '-d', pretrained_folder, '-o', file], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             console.print(f"[red]Error downloading {file}: {e}[/red]")
 
@@ -59,12 +71,12 @@ file_links = {
     "hubert/hubert_base.pt": "https://huggingface.co/Rejekts/project/resolve/main/hubert_base.pt"
 }
 
-for file, link in track(file_links.items(), description="Загрузка файлов"):
+for file, link in track(file_links.items(), description="Загрузка дополнительных файлов"):
     file_path = os.path.join(assets_folder, file)
     if not os.path.exists(file_path):
         try:
-            # Параллельная загрузка файлов
-            subprocess.run(['wget', '-O', file_path, '--tries=3', '--waitretry=1', '--timeout=15', '--limit-rate=1M', '--continue', link], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+            # Загрузка файла
+            subprocess.run(['aria2c', '-x', '16', '-s', '16', '-k', '1M', link, '-d', assets_folder, '-o', file], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             console.print(f"[red]Error downloading {file}: {e}[/red]")
 
