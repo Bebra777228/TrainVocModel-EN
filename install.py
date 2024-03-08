@@ -17,7 +17,7 @@ for package in packages:
         try:
             # Перенаправление вывода в консоль на полосу прогресса
             with logging_redirect_tqdm():
-                subprocess.check_call(['pip', 'install', package], check=True)
+                subprocess.run(['pip', 'install', package], check=True)
         except subprocess.CalledProcessError as e:
             print(f"Error installing {package}: {e}")
     progress_bar.update(1)
