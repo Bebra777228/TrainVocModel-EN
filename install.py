@@ -1,7 +1,10 @@
 import os
 import subprocess
-from tqdm import tqdm
-from tqdm.contrib.logging import logging_redirect_tqdm
+import rich
+from rich.progress import track
+from rich.console import Console
+
+console = Console()
 
 # Установка зависимостей
 print('Установка зависимостей...')
@@ -11,17 +14,12 @@ requirements_file = 'requirements.txt'
 with open(requirements_file, 'r') as f:
     packages = f.read().split('\n')
 
-progress_bar = tqdm(total=len(packages))
-for package in packages:
+for package in track(packages, description="Установка пакетов"):
     if package:
         try:
-            # Перенаправление вывода в консоль на полосу прогресса
-            with logging_redirect_tqdm():
-                subprocess.run(['pip', 'install', package], check=True)
+            subprocess.run(['pip', 'install', package], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
-            print(f"Error installing {package}: {e}")
-    progress_bar.update(1)
-progress_bar.close()
+            console.print(f"[red]Error installing {package}: {e}[/red]")
 
 # Установка моделей
 print('Установка моделей...')
@@ -42,18 +40,13 @@ files = {
     "f0_Rin_E3_40kG.pth":"https://huggingface.co/ORVC/RIN_E3/resolve/main/RIN_E3_G.pth"
 }
 
-progress_bar = tqdm(total=len(files))
-for file, link in files.items():
+for file, link in track(files.items(), description="Загрузка моделей"):
     file_path = os.path.join(pretrained_folder, file)
     if not os.path.exists(file_path):
         try:
-            # Перенаправление вывода в консоль на полосу прогресса
-            with logging_redirect_tqdm():
-                subprocess.run(['aria2c', '--console-log-level=info', '-c', '-x', '16', '-s', '16', '-k', '1M', link, '-d', pretrained_folder, '-o', file], check=True)
+            subprocess.run(['aria2c', '--console-log-level=info', '-c', '-x', '16', '-s', '16', '-k', '1M', link, '-d', pretrained_folder, '-o', file], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
-            print(f"Error downloading {file}: {e}")
-    progress_bar.update(1)
-progress_bar.close()
+            console.print(f"[red]Error downloading {file}: {e}[/red]")
 
 # Загрузка дополнительных файлов
 assets_folder = "./assets/"
@@ -64,17 +57,12 @@ file_links = {
     "hubert/hubert_base.pt": "https://huggingface.co/Rejekts/project/resolve/main/hubert_base.pt"
 }
 
-progress_bar = tqdm(total=len(file_links))
-for file, link in file_links.items():
+for file, link in track(file_links.items(), description="Загрузка файлов"):
     file_path = os.path.join(assets_folder, file)
     if not os.path.exists(file_path):
         try:
-            # Перенаправление вывода в консоль на полосу прогресса
-            with logging_redirect_tqdm():
-                subprocess.run(['wget', '-O', file_path, link], check=True)
+            subprocess.run(['wget', '-O', file_path, link], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
-            print(f"Error downloading {file}: {e}")
-    progress_bar.update(1)
-progress_bar.close()
+            console.print(f"[red]Error downloading {file}: {e}[/red]")
 
-print("\u2714 Готово")
+console.print("\u2714 Готово")
