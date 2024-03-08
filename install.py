@@ -14,27 +14,18 @@ requirements_file = 'requirements.txt'
 with open(requirements_file, 'r') as f:
     packages = f.read().split('\n')
 
-# Установка пакетов в виртуальном окружении
-import sys
-import site
-# Add site-packages to sys.path so that we can use pip to install packages
-sys.path.append('/content/drive/MyDrive/TrainingModel/site-packages')
-site.addsitedir('/content/drive/MyDrive/TrainingModel/site-packages')
-
-import pip
-# Install packages using pip in a virtual environment
 for package in track(packages, description="Установка пакетов"):
     if package:
         try:
-            pip.main(['install', '--no-cache-dir', '--disable-pip-version-check', '--no-deps', package])
-        except Exception as e:
+            subprocess.run(['pip', 'install', package], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
             console.print(f"[red]Error installing {package}: {e}[/red]")
 
 # Установка моделей
 print('Установка моделей...')
 
 # Загрузка предобученных моделей
-pretrained_folder = "/content/drive/MyDrive/TrainingModel/pretrained_models"
+pretrained_folder = "/content/pretrained_models"
 if not os.path.exists(pretrained_folder):
     os.makedirs(pretrained_folder)
 
@@ -53,13 +44,12 @@ for file, link in track(files.items(), description="Загрузка модел�
     file_path = os.path.join(pretrained_folder, file)
     if not os.path.exists(file_path):
         try:
-            # Параллельная загрузка файлов
-            subprocess.run(['aria2c', '--console-log-level=info', '-c', '-x', '16', '-s', '16', '-k', '1M', '--max-concurrent-downloads=4', link, '-d', pretrained_folder, '-o', file], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+            subprocess.run(['aria2c', '--console-log-level=info', '-c', '-x', '16', '-s', '16', '-k', '1M', link, '-d', pretrained_folder, '-o', file], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             console.print(f"[red]Error downloading {file}: {e}[/red]")
 
 # Загрузка дополнительных файлов
-assets_folder = "/content/drive/MyDrive/TrainingModel/assets"
+assets_folder = "./assets/"
 os.makedirs(assets_folder, exist_ok=True)
 
 file_links = {
@@ -71,8 +61,7 @@ for file, link in track(file_links.items(), description="Загрузка фай
     file_path = os.path.join(assets_folder, file)
     if not os.path.exists(file_path):
         try:
-            # Параллельная загрузка файлов
-            subprocess.run(['wget', '-O', file_path, '--tries=3', '--waitretry=1', '--timeout=15', '--limit-rate=1M', '--continue', link], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+            subprocess.run(['wget', '-O', file_path, link], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             console.print(f"[red]Error downloading {file}: {e}[/red]")
 
