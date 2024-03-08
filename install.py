@@ -41,15 +41,32 @@ for file, link in files.items():
     file_path = os.path.join(pretrained_folder, file)
     if not os.path.exists(file_path):
         try:
-            subprocess.run(['aria2c', '--console-log-level=error', '-c', '-x', '16', '-s', '16', '-k', '1M', link, '-d', pretrained_folder, '-o', file], check=True)
-            progress_bar.update(1)
+            # Запускаем команду загрузки файла с выводом в консоль
+            process = subprocess.Popen(['aria2c', '--console-log-level=info', '-c', '-x', '16', '-s', '16', '-k', '1M', link, '-d', pretrained_folder, '-o', file], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+            # Читаем вывод команды и обновляем полосу прогресса
+            progress = None
+            for line in iter(process.stdout.readline, b''):
+                line = line.decode().strip()
+                if progress is None and 'Progress' in line:
+                    progress = line.split('=')[1].strip()
+                elif progress is not None:
+                    new_progress = line.split('=')[1].strip()
+                    if new_progress != progress:
+                        progress = new_progress
+                        progress_bar.set_description(f"Downloading {file}: {progress}")
+                        progress_bar.update(1)
+
+            # Дожидаемся завершения команды
+            process.wait()
+
         except subprocess.CalledProcessError as e:
             print(f"Error downloading {file}: {e}")
     else:
         progress_bar.update(1)
 progress_bar.close()
 
-# Загрузка Дополнительных файлов
+# Загрузка дополнительных файлов
 assets_folder = "./assets/"
 os.makedirs(assets_folder, exist_ok=True)
 
@@ -63,8 +80,25 @@ for file, link in file_links.items():
     file_path = os.path.join(assets_folder, file)
     if not os.path.exists(file_path):
         try:
-            subprocess.run(['wget', '-O', file_path, link], check=True)
-            progress_bar.update(1)
+            # Запускаем команду загрузки файла с выводом в консоль
+            process = subprocess.Popen(['wget', '-O', file_path, link], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+            # Читаем вывод команды и обновляем полосу прогресса
+            progress = None
+            for line in iter(process.stdout.readline, b''):
+                line = line.decode().strip()
+                if progress is None and '[' in line and ']' in line:
+                    progress = line.split('[')[1].split(']')[0].strip()
+                elif progress is not None:
+                    new_progress = line.split('[')[1].split(']')[0].strip()
+                    if new_progress != progress:
+                        progress = new_progress
+                        progress_bar.set_description(f"Downloading {file}: {progress}")
+                        progress_bar.update(1)
+
+            # Дожидаемся завершения команды
+            process.wait()
+
         except subprocess.CalledProcessError as e:
             print(f"Error downloading {file}: {e}")
     else:
