@@ -6,15 +6,6 @@ from rich.console import Console
 
 console = Console()
 
-# Создание виртуального окружения
-print('Создание виртуального окружения...')
-subprocess.check_call(['python', '-m', 'venv', 'env'])
-
-# Активация виртуального окружения
-print('Активация виртуального окружения...')
-activate_this = os.path.join('env', 'bin', 'activate_this.py')
-exec(open(activate_this).read(), dict(__file__=activate_this))
-
 # Установка зависимостей
 print('Установка зависимостей...')
 requirements_file = 'requirements.txt'
@@ -58,7 +49,7 @@ for file, link in track(files.items(), description="Загрузка модел�
     if not os.path.exists(file_path):
         try:
             # Загрузка файла
-            subprocess.run(['aria2c', '-x', '16', '-s', '16', '-k', '1M', link, '-d', pretrained_folder, '-o', file], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+            subprocess.run(['wget', '-q', link, '-O', file_path], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             console.print(f"[red]Error downloading {file}: {e}[/red]")
 
@@ -76,7 +67,7 @@ for file, link in track(file_links.items(), description="Загрузка доп
     if not os.path.exists(file_path):
         try:
             # Загрузка файла
-            subprocess.run(['aria2c', '-x', '16', '-s', '16', '-k', '1M', link, '-d', assets_folder, '-o', file], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+            subprocess.run(['wget', '-q', link, '-O', file_path], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             console.print(f"[red]Error downloading {file}: {e}[/red]")
 
