@@ -14,8 +14,13 @@ with open(requirements_file, 'r') as f:
 progress_bar = tqdm(total=len(packages))
 for package in packages:
     if package:
-        subprocess.check_call(['pip', 'install', package], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-        progress_bar.update(1)
+        try:
+            # Перенаправление вывода в консоль на полосу прогресса
+            with logging_redirect_tqdm():
+                subprocess.check_call(['pip', 'install', package], check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error installing {package}: {e}")
+    progress_bar.update(1)
 progress_bar.close()
 
 # Установка моделей
