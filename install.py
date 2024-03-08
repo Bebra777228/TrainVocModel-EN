@@ -14,10 +14,11 @@ requirements_file = 'requirements.txt'
 with open(requirements_file, 'r') as f:
     packages = f.read().split('\n')
 
+# Использование кэша pip
 for package in track(packages, description="Установка пакетов"):
     if package:
         try:
-            subprocess.run(['pip', 'install', package], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+            subprocess.run(['pip', 'install', '--use-cache', package], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             console.print(f"[red]Error installing {package}: {e}[/red]")
 
@@ -44,7 +45,8 @@ for file, link in track(files.items(), description="Загрузка модел�
     file_path = os.path.join(pretrained_folder, file)
     if not os.path.exists(file_path):
         try:
-            subprocess.run(['aria2c', '--console-log-level=info', '-c', '-x', '16', '-s', '16', '-k', '1M', link, '-d', pretrained_folder, '-o', file], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+            # Параллельная загрузка файлов
+            subprocess.run(['aria2c', '--console-log-level=info', '-c', '-x', '16', '-s', '16', '-k', '1M', '--max-concurrent-downloads=4', link, '-d', pretrained_folder, '-o', file], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             console.print(f"[red]Error downloading {file}: {e}[/red]")
 
@@ -61,7 +63,8 @@ for file, link in track(file_links.items(), description="Загрузка фай
     file_path = os.path.join(assets_folder, file)
     if not os.path.exists(file_path):
         try:
-            subprocess.run(['wget', '-O', file_path, link], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+            # Параллельная загрузка файлов
+            subprocess.run(['wget', '-O', file_path, '--tries=3', '--waitretry=1', '--timeout=15', '--limit-rate=1M', '--continue', link], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             console.print(f"[red]Error downloading {file}: {e}[/red]")
 
