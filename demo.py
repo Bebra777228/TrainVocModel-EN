@@ -29,7 +29,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                     with gr.Row():
                         dropbox = gr.File(label="Перетащите сюда аудиофайл и нажмите кнопку 'Обновить'.")
                     with gr.Row():
-                        record_button=gr.Audio(source="microphone", label="ИЛИ Запишите аудио.", type="filepath")
+                        record_button=gr.Audio(source="microphone", label="Записать звук с микрофона.", type="filepath")
                     with gr.Row():
                         paths_for_files = lambda path:[os.path.abspath(os.path.join(path, f)) for f in os.listdir(path) if os.path.splitext(f)[1].lower() in ('.mp3', '.wav', '.flac', '.ogg')]
                         input_audio0 = gr.Dropdown(
@@ -69,7 +69,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                             interactive=True,
                         )
                     vc_output2 = gr.Audio(label="Выход")
-                    with gr.Accordion("Общие настройки", open=False):
+                    with gr.Accordion("Дополнительные настройки", open=False):
                         f0method0 = gr.Radio(
                             label="Метод",
                             choices=["pm", "harvest", "crepe", "rmvpe"]
@@ -135,7 +135,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
             with gr.Row():
                 f0_file = gr.File(label="Путь к файлу F0", visible=False)
             with gr.Row():
-                vc_output1 = gr.Textbox(label="Информация", placeholder="Добро пожаловать!",visible=False)
+                vc_output1 = gr.Textbox(label="Информация", placeholder="Добро пожаловать!",visible=True)
                 but0.click(
                     vc.vc_single,
                     [
@@ -172,7 +172,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                     fn=download_from_url,
                 )
             with gr.Row():
-                model_browser = gr.Dropdown(choices=list(model_library.models.keys()),label="ИЛИ Поиск моделей (качество НЕИЗВЕСТНО)",scale=5)
+                model_browser = gr.Dropdown(choices=list(model_library.models.keys()),label="Пользовательские модели",scale=5)
                 download_from_browser = gr.Button(value="Получить",scale=2)
                 download_from_browser.click(
                     inputs=[model_browser],
@@ -182,7 +182,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
         with gr.TabItem("Тренировка"):
             with gr.Row():
                 with gr.Column():
-                    training_name = gr.Textbox(label="Название вашей модели", value="My-Voice",placeholder="My-Voice")
+                    training_name = gr.Textbox(label="Дайте имя своей модели", value="My-Voice",placeholder="My-Voice")
                     np7 = gr.Slider(
                         minimum=0,
                         maximum=config.n_cpu,
@@ -213,7 +213,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                         visible=False,
                     )
                     dataset_folder = gr.Textbox(
-                        label="папка с набором данных", value='dataset'
+                        label="Папка с набором данных", value='dataset'
                     )
                     easy_uploader = gr.Files(label="Перетащите сюда ваши аудиофайлы",file_types=['audio'])
                     but1 = gr.Button("1. Обработать", variant="primary")
@@ -255,7 +255,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                         interactive=True,
                     )
                     gpus_rmvpe = gr.Textbox(
-                        label="Номера GPU для использования через дефис, (например, 0-1-2)",
+                        label="Номера GPU для использования через дефис (например 0-1-2)",
                         value="%s-%s" % (gpus, gpus),
                         interactive=True,
                         visible=F0GPUVisible,
@@ -284,10 +284,10 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                 with gr.Column():
                     total_epoch11 = gr.Slider(
                         minimum=2,
-                        maximum=1000,
+                        maximum=2000,
                         step=1,
                         label="Эпохи (больше эпох может улучшить качество, но занимает больше времени)",
-                        value=150,
+                        value=300,
                         interactive=True,
                     )
                     but4 = gr.Button("3. Тренировать индекс", variant="primary")
@@ -295,7 +295,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                     info3 = gr.Textbox(label="Информация", value="", max_lines=10)
                     with gr.Accordion(label="Общие настройки", open=False):
                         gpus16 = gr.Textbox(
-                            label="GPU через дефис, (например, 0-1-2)",
+                            label="GPU через дефис (например 0-1-2)",
                             value="0",
                             interactive=True,
                             visible=True
@@ -304,13 +304,13 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                             minimum=1,
                             maximum=50,
                             step=1,
-                            label="Частота сохранения весов",
+                            label="Частота сохранения модели",
                             value=25,
                             interactive=True,
                         )
                         batch_size12 = gr.Slider(
                             minimum=1,
-                            maximum=40,
+                            maximum=20,
                             step=1,
                             label="Размер пакета",
                             value=default_batch_size,
@@ -326,7 +326,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                         if_cache_gpu17 = gr.Radio(
                             label="Если ваш набор данных МЕНЬШЕ 10 минут, кэшируйте его для более быстрой тренировки",
                             choices=["yes", "no"],
-                            value="no",
+                            value="yes",
                             interactive=True,
                         )
                         if_save_every_weights18 = gr.Radio(
@@ -335,10 +335,10 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                             value="yes",
                             interactive=True,
                         )
-                        with gr.Accordion(label="Изменить предобученные модели", open=False):
+                        with gr.Accordion(label="Список предварительно обученных моделей", open=False):
                             pretrained = lambda sr, letter: [os.path.abspath(os.path.join('assets/pretrained_v2', file)) for file in os.listdir('assets/pretrained_v2') if file.endswith('.pth') and sr in file and letter in file]
                             pretrained_G14 = gr.Dropdown(
-                                label="Предобученная модель G",
+                                label="Предварительно обученная модель G",
                                 # Получить список всех предобученных моделей G в assets/pretrained_v2, заканчивающихся на .pth
                                 choices = pretrained(sr2.value, 'G'),
                                 value=pretrained(sr2.value, 'G')[0] if len(pretrained(sr2.value, 'G')) > 0 else '',
@@ -346,14 +346,14 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                                 visible=True
                             )
                             pretrained_D15 = gr.Dropdown(
-                                label="Предобученная модель D",
+                                label="Предварительно обученная модель D",
                                 choices = pretrained(sr2.value, 'D'),
                                 value= pretrained(sr2.value, 'D')[0] if len(pretrained(sr2.value, 'G')) > 0 else '',
                                 visible=True,
                                 interactive=True
                             )
                     with gr.Row():
-                        download_model = gr.Button('5.Загрузить модель')
+                        download_model = gr.Button('5. Скачать файлы модели')
                     with gr.Row():
                         model_files = gr.Files(label='Ваша модель и индексный файл могут быть загружены здесь:')
                         download_model.click(
@@ -377,7 +377,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                             [f0method8, pretrained_G14, pretrained_D15],
                         )
                     with gr.Row():
-                        but5 = gr.Button("Тренировка в один клик", variant="primary", visible=False)
+                        but5 = gr.Button("Тренировка в один клик", variant="primary", visible=True)
                         but3.click(
                             click_train,
                             [
