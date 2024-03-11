@@ -318,21 +318,21 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                         )
                         if_save_latest13 = gr.Radio(
                             label="Сохранять только последнюю модель",
-                            choices=["yes", "no"],
-                            value="yes",
+                            choices=["Да", "Нет"],
+                            value="Да",
                             interactive=True,
                             visible=False
                         )
                         if_cache_gpu17 = gr.Radio(
                             label="Если ваш набор данных МЕНЬШЕ 10 минут, кэшируйте его для более быстрой тренировки",
-                            choices=["yes", "no"],
-                            value="yes",
+                            choices=["Да", "Нет"],
+                            value="Да",
                             interactive=True,
                         )
                         if_save_every_weights18 = gr.Radio(
                             label="Сохранять маленькую модель после каждого сохранения",
-                            choices=["yes", "no"],
-                            value="yes",
+                            choices=["Да", "Нет"],
+                            value="Да",
                             interactive=True,
                         )
                         with gr.Accordion(label="Список предварительно обученных моделей", open=False):
