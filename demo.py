@@ -135,7 +135,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
             with gr.Row():
                 f0_file = gr.File(label="Путь к файлу F0", visible=False)
             with gr.Row():
-                vc_output1 = gr.Textbox(label="Информация", placeholder="Добро пожаловать!",visible=True)
+                vc_output1 = gr.Textbox(label="Информация", placeholder="Добро пожаловать!",visible=False)
                 but0.click(
                     vc.vc_single,
                     [
