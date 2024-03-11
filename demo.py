@@ -8,7 +8,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
     with gr.Row():
         gr.HTML("<img  src='file/a.png' alt='image'>")
     with gr.Tabs():
-        with gr.TabItem("Inference"):
+        with gr.TabItem("Интерфейс"):
             with gr.Row():
                 voice_model = gr.Dropdown(label="Model Voice", choices=sorted(names), value=lambda:sorted(names)[0] if len(sorted(names)) > 0 else '', interactive=True)
                 refresh_button = gr.Button("Refresh", variant="primary")
@@ -163,7 +163,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                     outputs=[spk_item, protect0, protect0, file_index2, file_index2],
                     api_name="infer_change_voice",
                 )
-        with gr.TabItem("Download Models"):
+        with gr.TabItem("Загрузка модели"):
             with gr.Row():
                 url_input = gr.Textbox(label="URL to model", value="",placeholder="https://...", scale=6)
                 name_output = gr.Textbox(label="Save as", value="",placeholder="MyModel",scale=2)
@@ -181,7 +181,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                     outputs=[model_browser],
                     fn=lambda model: download_from_url(model_library.models[model],model),
                 )
-        with gr.TabItem("Train"):
+        with gr.TabItem("Тренировка"):
             with gr.Row():
                 with gr.Column():
                     training_name = gr.Textbox(label="Name your model", value="My-Voice",placeholder="My-Voice")
@@ -196,7 +196,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                     sr2 = gr.Radio(
                         label="Sampling Rate",
                         choices=["40k", "32k"],
-                        value="32k",
+                        value="40k",
                         interactive=True,
                         visible=False
                     )
