@@ -27,9 +27,9 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
             with gr.Row():
                 with gr.Column():
                     with gr.Row():
-                        dropbox = gr.File(label="Перетащите сюда аудиофайл и нажмите кнопку 'Обновить'.")
+                        dropbox = gr.File(label="Перетащите сюда аудиофайл и нажмите кнопку 'Обновить'")
                     with gr.Row():
-                        record_button=gr.Audio(source="microphone", label="Записать звук с микрофона.", type="filepath")
+                        record_button=gr.Audio(source="microphone", label="Записать звук с микрофона", type="filepath")
                     with gr.Row():
                         paths_for_files = lambda path:[os.path.abspath(os.path.join(path, f)) for f in os.listdir(path) if os.path.splitext(f)[1].lower() in ('.mp3', '.wav', '.flac', '.ogg')]
                         input_audio0 = gr.Dropdown(
@@ -199,7 +199,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                         visible=False
                     )
                     if_f0_3 = gr.Radio(
-                        label="Будет ли ваша модель использоваться для пения? Если нет, вы можете проигнорировать это.",
+                        label="Будет ли ваша модель использоваться для пения? Если нет, вы можете проигнорировать это",
                         choices=[True, False],
                         value=True,
                         interactive=True,
