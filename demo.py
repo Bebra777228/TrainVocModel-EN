@@ -5,8 +5,6 @@ os.makedirs("dataset",exist_ok=True)
 model_library = CachedModels()
 
 with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue="zinc")) as app:
-    with gr.Row():
-        gr.HTML("<img  src='file/a.png' alt='image'>")
     with gr.Tabs():
         with gr.TabItem("Интерфейс"):
             with gr.Row():
