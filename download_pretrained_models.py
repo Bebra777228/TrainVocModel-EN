@@ -10,11 +10,7 @@ files = {
     "SnowieV2_D.pth":"https://huggingface.co/MUSTAR/SnowyRuPretrain_EnP_40k/resolve/main/D_Snowie_RuPretrain_EnP.pth",
     "SnowieV2_G.pth":"https://huggingface.co/MUSTAR/SnowyRuPretrain_EnP_40k/resolve/main/G_Snowie_RuPretrain_EnP.pth",
     "Rin_E3_D.pth":"https://huggingface.co/ORVC/RIN_E3/resolve/main/RIN_E3_D.pth",
-    "Rin_E3_G.pth":"https://huggingface.co/ORVC/RIN_E3/resolve/main/RIN_E3_G.pth",
-    "SnowieV3_D.pth":"https://huggingface.co/MUSTAR/SnowieV3-40k_pretrain/resolve/main/D_SnowieV3_40k.pth",
-    "SnowieV3_G.pth":"https://huggingface.co/MUSTAR/SnowieV3-40k_pretrain/resolve/main/G_SnowieV3_40k.pth",
-    "SnowieV3_x_Rin_E3_D.pth":"https://huggingface.co/MUSTAR/SnowieV3-X-RINE3-40K/resolve/main/D_Snowie-X-Rin_40k.pth",
-    "SnowieV3_x_Rin_E3_G.pth":"https://huggingface.co/MUSTAR/SnowieV3-X-RINE3-40K/resolve/main/G_Snowie-X-Rin_40k.pth"
+    "Rin_E3_G.pth":"https://huggingface.co/ORVC/RIN_E3/resolve/main/RIN_E3_G.pth"
 }
 for file, link in files.items():
     file_path = os.path.join(pretrained_folder, file)
