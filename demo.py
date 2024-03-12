@@ -54,9 +54,9 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                             inputs=[dropbox],
                             outputs=[input_audio0])
                 with gr.Column():
-                    with gr.Accordion("Изменить индекс", open=False):
+                    with gr.Accordion("Настройка index файла", open=False):
                         file_index2 = gr.Dropdown(
-                            label="Изменить индекс",
+                            label="Index модели:",
                             choices=sorted(index_paths),
                             interactive=True,
                             value=sorted(index_paths)[0] if len(sorted(index_paths)) > 0 else ''
