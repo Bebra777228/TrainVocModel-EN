@@ -8,7 +8,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
     with gr.Tabs():
         with gr.TabItem("Интерфейс"):
             with gr.Row():
-                voice_model = gr.Dropdown(label="Модель голоса", choices=sorted(names), value=lambda:sorted(names)[0] if len(sorted(names)) > 0 else '', interactive=True)
+                voice_model = gr.Dropdown(label="Модель голоса:", choices=sorted(names), value=lambda:sorted(names)[0] if len(sorted(names)) > 0 else '', interactive=True)
                 refresh_button = gr.Button("Обновить", variant="primary")
                 spk_item = gr.Slider(
                     minimum=0,
@@ -19,11 +19,15 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                     visible=False,
                     interactive=True,
                 )
-                vc_transform0 = gr.Number(
+                vc_transform0 = gr.Slider(
+                    minimum=-20,
+                    maximum=20,
+                    step=1,
                     label="Тон",
-                    value=0
+                    value=0,
+                    interactive=True,
                 )
-                but0 = gr.Button(value="Преобразовать", variant="primary")
+                but0 = gr.Button(value="🔊Преобразовать🔊", variant="primary")
             with gr.Row():
                 with gr.Column():
                     with gr.Row():
@@ -33,7 +37,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                     with gr.Row():
                         paths_for_files = lambda path:[os.path.abspath(os.path.join(path, f)) for f in os.listdir(path) if os.path.splitext(f)[1].lower() in ('.mp3', '.wav', '.flac', '.ogg')]
                         input_audio0 = gr.Dropdown(
-                            label="Путь к входному файлу",
+                            label="Путь к входному файлу:",
                             value=paths_for_files('audios')[0] if len(paths_for_files('audios')) > 0 else '',
                             choices=paths_for_files('audios'), # Показывать только абсолютные пути к аудиофайлам с расширениями .mp3, .wav, .flac или .ogg
                             allow_custom_value=True
@@ -65,7 +69,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                             minimum=0,
                             maximum=1,
                             label="Сила индекса",
-                            value=0.5,
+                            value=0.66,
                             interactive=True,
                         )
                     vc_output2 = gr.Audio(label="Выход")
@@ -163,7 +167,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                 )
         with gr.TabItem("Загрузка модели"):
             with gr.Row():
-                url_input = gr.Textbox(label="URL модели", value="",placeholder="https://...", scale=6)
+                url_input = gr.Textbox(label="URL модели:", value="",placeholder="https://...", scale=6)
                 name_output = gr.Textbox(label="Сохранить как", value="",placeholder="MyModel",scale=2)
                 url_download = gr.Button(value="Загрузить модель",scale=2)
                 url_download.click(
@@ -182,7 +186,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
         with gr.TabItem("Тренировка"):
             with gr.Row():
                 with gr.Column():
-                    training_name = gr.Textbox(label="Дайте имя своей модели", value="My-Voice",placeholder="My-Voice")
+                    training_name = gr.Textbox(label="Дайте имя своей модели:", value="Model_Name",placeholder="Shanin")
                     np7 = gr.Slider(
                         minimum=0,
                         maximum=config.n_cpu,
@@ -213,11 +217,11 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                         visible=False,
                     )
                     dataset_folder = gr.Textbox(
-                        label="Папка с набором данных", value='dataset'
+                        label="Папка с набором данных:", value='dataset'
                     )
                     easy_uploader = gr.Files(label="Перетащите сюда ваши аудиофайлы",file_types=['audio'])
                     but1 = gr.Button("1. Обработать", variant="primary")
-                    info1 = gr.Textbox(label="Информация", value="",visible=True)
+                    info1 = gr.Textbox(label="Информация:", value="",visible=True)
                     easy_uploader.upload(inputs=[dataset_folder],outputs=[],fn=lambda folder:os.makedirs(folder,exist_ok=True))
                     easy_uploader.upload(
                         fn=lambda files,folder: [shutil.copy2(f.name,os.path.join(folder,os.path.split(f.name)[1])) for f in files] if folder != "" else gr.Warning('Пожалуйста, укажите имя папки для вашего набора данных'),
@@ -230,7 +234,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                         visible=F0GPUVisible,
                     )
                     gpu_info9 = gr.Textbox(
-                        label="Информация о GPU", value=gpu_info, visible=F0GPUVisible
+                        label="Информация о GPU:", value=gpu_info, visible=F0GPUVisible
                     )
                     spk_id5 = gr.Slider(
                         minimum=0,
@@ -261,7 +265,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                         visible=F0GPUVisible,
                     )
                     but2 = gr.Button("2. Выделить характеристики", variant="primary")
-                    info2 = gr.Textbox(label="Информация", value="", max_lines=8)
+                    info2 = gr.Textbox(label="Информация:", value="", max_lines=8)
                     f0method8.change(
                         fn=change_f0_method,
                         inputs=[f0method8],
@@ -292,7 +296,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                     )
                     but4 = gr.Button("3. Тренировать индекс", variant="primary")
                     but3 = gr.Button("4. Тренировать модель", variant="primary")
-                    info3 = gr.Textbox(label="Информация", value="", max_lines=10)
+                    info3 = gr.Textbox(label="Информация:", value="", max_lines=10)
                     with gr.Accordion(label="Общие настройки", open=False):
                         gpus16 = gr.Textbox(
                             label="GPU через дефис (например 0-1-2)",
@@ -305,7 +309,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                             maximum=50,
                             step=1,
                             label="Частота сохранения модели",
-                            value=25,
+                            value=20,
                             interactive=True,
                         )
                         batch_size12 = gr.Slider(
@@ -338,7 +342,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                         with gr.Accordion(label="Список предварительно обученных моделей", open=False):
                             pretrained = lambda sr, letter: [os.path.abspath(os.path.join('assets/pretrained_v2', file)) for file in os.listdir('assets/pretrained_v2') if file.endswith('.pth') and sr in file and letter in file]
                             pretrained_G14 = gr.Dropdown(
-                                label="Предварительно обученная модель G",
+                                label="pretrain G:",
                                 # Получить список всех предобученных моделей G в assets/pretrained_v2, заканчивающихся на .pth
                                 choices = pretrained(sr2.value, 'G'),
                                 value=pretrained(sr2.value, 'G')[0] if len(pretrained(sr2.value, 'G')) > 0 else '',
@@ -346,7 +350,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                                 visible=True
                             )
                             pretrained_D15 = gr.Dropdown(
-                                label="Предварительно обученная модель D",
+                                label="pretrain D:",
                                 choices = pretrained(sr2.value, 'D'),
                                 value= pretrained(sr2.value, 'D')[0] if len(pretrained(sr2.value, 'G')) > 0 else '',
                                 visible=True,
@@ -377,7 +381,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                             [f0method8, pretrained_G14, pretrained_D15],
                         )
                     with gr.Row():
-                        but5 = gr.Button("Тренировка в один клик", variant="primary", visible=True)
+                        but5 = gr.Button("⚠️Тренировка в один клик⚠️", variant="primary", visible=True)
                         but3.click(
                             click_train,
                             [
