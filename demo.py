@@ -49,7 +49,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                             outputs=[audio_player],
                             fn=lambda path: {"value":path,"__type__":"update"} if os.path.exists(path) else None
                         )
-                        record_button.stop_recording(
+                        record_button.stop(
                             fn=lambda audio:audio, #TODO сохранить wav lambda
                             inputs=[record_button],
                             outputs=[input_audio0])
