@@ -197,10 +197,10 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                     )
                     sr2 = gr.Radio(
                         label="Частота дискретизации",
-                        choices=["40k", "32k"],
+                        choices=["32k", "40k", "48k"],
                         value="40k",
                         interactive=True,
-                        visible=False
+                        visible=True
                     )
                     if_f0_3 = gr.Radio(
                         label="Будет ли ваша модель использоваться для пения? Если нет, вы можете проигнорировать это",
@@ -217,7 +217,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                         visible=False,
                     )
                     dataset_folder = gr.Textbox(
-                        label="Папка с набором данных:", value='dataset'
+                        label="Папка с набором данных:", value='/content/dataset'
                     )
                     easy_uploader = gr.Files(label="Перетащите сюда ваши аудиофайлы",file_types=['audio'])
                     but1 = gr.Button("1. Обработать", variant="primary")
@@ -288,7 +288,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                 with gr.Column():
                     total_epoch11 = gr.Slider(
                         minimum=2,
-                        maximum=2000,
+                        maximum=1000,
                         step=1,
                         label="Эпохи (больше эпох может улучшить качество, но занимает больше времени)",
                         value=300,
@@ -340,7 +340,7 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
                             interactive=True,
                         )
                         with gr.Accordion(label="Список предварительно обученных моделей", open=False):
-                            pretrained = lambda sr, letter: [os.path.abspath(os.path.join('assets/pretrained_v2', file)) for file in os.listdir('assets/pretrained_v2') if file.endswith('.pth') and sr in file and letter in file]
+                            pretrained = lambda sr, letter: [os.path.abspath(os.path.join('/content/assets/pretrained_v2', file)) for file in os.listdir('/content/assets/pretrained_v2') if file.endswith('.pth') and sr in file and letter in file]
                             pretrained_G14 = gr.Dropdown(
                                 label="pretrain G:",
                                 # Получить список всех предобученных моделей G в assets/pretrained_v2, заканчивающихся на .pth
