@@ -1,7 +1,7 @@
 from original import *
 import shutil, glob
 from easyfuncs import download_from_url, CachedModels
-os.makedirs("dataset",exist_ok=True)
+os.makedirs("/content/dataset",exist_ok=True)
 model_library = CachedModels()
 
 with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue="zinc")) as app:
