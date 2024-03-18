@@ -10,21 +10,14 @@ with gr.Blocks(title="🔊",theme=gr.themes.Base(primary_hue="rose",neutral_hue=
             with gr.Row():
                 voice_model = gr.Dropdown(label="Модель голоса:", choices=sorted(names), value=lambda:sorted(names)[0] if len(sorted(names)) > 0 else '', interactive=True)
                 refresh_button = gr.Button("Обновить", variant="primary")
-                spk_item = gr.Slider(
-                    minimum=0,
-                    maximum=2333,
-                    step=1,
-                    label="Идентификатор спикера",
-                    value=0,
-                    visible=False,
-                    interactive=True,
-                )
+                spk_item = gr.Textbox(label="Идентификатор спикера", value=0, scale=0.5, interactive=False)
                 vc_transform0 = gr.Slider(
                     minimum=-20,
                     maximum=20,
                     step=1,
                     label="Тон",
                     value=0,
+                    scale=2,
                     interactive=True,
                 )
                 but0 = gr.Button(value="🔊Преобразовать🔊", variant="primary")
