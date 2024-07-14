@@ -506,7 +506,7 @@ def train_and_evaluate(
                     loss_kl = 9
 
                 logger.info(
-                    f"> loss_disc = {loss_disc:.3f} + loss_gen = {loss_gen:.3f} + loss_fm = {loss_fm:.3f} + loss_mel = {loss_mel:.3f} + loss_kl = {loss_kl:.3f} = loss/g/total = {loss_gen_all:.3f}"
+                    f"> loss_disc={loss_disc:.3f} + loss_gen={loss_gen:.3f} + loss_fm={loss_fm:.3f} + loss_mel={loss_mel:.3f} + loss_kl={loss_kl:.3f} ===> loss/g/total = {loss_gen_all:.3f}"
                 )
                 scalar_dict = {
                     "loss/g/total": loss_gen_all,
@@ -595,7 +595,7 @@ def train_and_evaluate(
             )
 
     if rank == 0:
-        logger.info("====> Эпоха: {}/{} - Шаг: {} | {}".format(epoch, total_epoch, global_step, epoch_recorder.record()))
+        logger.info("====> Эпоха: {}/{} - Шаг: {} | {}".format(epoch, hps.total_epoch, global_step, epoch_recorder.record()))
     if epoch >= hps.total_epoch and rank == 0:
         logger.info("Тренировка успешно завершена. Завершение программы...")
 
