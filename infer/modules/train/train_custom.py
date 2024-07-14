@@ -577,7 +577,7 @@ def train_and_evaluate(
             else:
                 ckpt = net_g.state_dict()
             logger.info(
-                "saving ckpt %s_e%s_s%s:%s"
+                "Сохранение модели - %s_e%s_s%s: %s"
                 % (
                     hps.name,
                     epoch,
