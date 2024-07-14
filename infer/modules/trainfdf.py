@@ -108,30 +108,25 @@ def click_train(
     print("\nЗапись файлов завершена\n")
     print("Запуск программы...\n")
 
+    if os.path.isfile(os.path.join(now_dir, 'infer/modules/train/train_custom.py')):
+        train_file = 'train_custom.py'
+    else:
+        train_file = 'train.py'
+
     cmd = (
-        'python infer/modules/train/train.py -e "%s" -sr %s -f0 %s -bs %s -g %s -te %s -se %s %s %s -l %s -c %s -sw %s -v %s'
-        % (
-            exp_dir1,
-            sr2,
-            1 if if_f0_3 else 0,
-            batch_size12,
-            gpus16,
-            total_epoch11,
-            save_epoch10,
-            "-pg %s" % pretrained_G14 if pretrained_G14 != "" else "",
-            "-pd %s" % pretrained_D15 if pretrained_D15 != "" else "",
-            1 if if_save_latest13 == True else 0,
-            1 if if_cache_gpu17 == True else 0,
-            1 if if_save_every_weights18 == True else 0,
-            version19,
-        )
+        f'python infer/modules/train/{train_file} -e "{exp_dir1}" -sr {sr2} -f0 {1 if if_f0_3 else 0} -bs {batch_size12} -g {gpus16} -te {total_epoch11} -se {save_epoch10} {"-pg %s" % pretrained_G14 if pretrained_G14 != "" else ""} {"-pd %s" % pretrained_D15 if pretrained_D15 != "" else ""} -l {1 if if_save_latest13 == True else 0} -c {1 if if_cache_gpu17 == True else 0} -sw {1 if if_save_every_weights18 == True else 0} -v {version19}'
     )
-    p = Popen(cmd, shell=True, cwd=now_dir, stdout=PIPE, stderr=STDOUT, bufsize=1, universal_newlines=True)
 
-    for line in p.stdout:
-        print(line.strip())
+    try:
+        p = Popen(cmd, shell=True, cwd=now_dir, stdout=PIPE, stderr=STDOUT, bufsize=1, universal_newlines=True)
 
-    p.wait()
+        for line in p.stdout:
+            print(line.strip())
+
+        p.wait()
+    except Exception as e:
+        print(f"Произошла ошибка: {e}")
+
     return "Программа закрыта."
 
 %load_ext tensorboard
