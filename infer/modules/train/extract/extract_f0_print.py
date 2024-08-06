@@ -12,8 +12,7 @@ import numpy as np
 import pyworld
 
 from infer.lib.audio import load_audio
-from infer.lib.rmvpe import RMVPE
-from infer.lib.rmvpe_custom import RMVPE_plus
+from infer.lib.rmvpe import RMVPE, RMVPE_plus
 
 logging.getLogger("numba").setLevel(logging.WARNING)
 from multiprocessing import Process
