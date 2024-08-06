@@ -12,6 +12,8 @@ import numpy as np
 import pyworld
 
 from infer.lib.audio import load_audio
+from infer.lib.rmvpe import RMVPE
+from infer.lib.rmvpe_custom import RMVPE_plus
 
 logging.getLogger("numba").setLevel(logging.WARNING)
 from multiprocessing import Process
@@ -83,13 +85,17 @@ class FeatureInput(object):
             f0 = pyworld.stonemask(x.astype(np.double), f0, t, self.fs)
         elif f0_method == "rmvpe":
             if hasattr(self, "model_rmvpe") == False:
-                from infer.lib.rmvpe import RMVPE
-
                 print("Loading rmvpe model")
                 self.model_rmvpe = RMVPE(
                     "assets/rmvpe/rmvpe.pt", is_half=False, device="cpu"
                 )
             f0 = self.model_rmvpe.infer_from_audio(x, thred=0.03)
+
+        elif f0_method == "rmvpe+":
+            if hasattr(self, "model_rmvpe"):
+                print("Loading rmvpe+ model")
+                self.model_rmvpe = RMVPE_plus("assets/rmvpe/rmvpe.pt", is_half=False, device="cuda")
+            f0 = self.model_rmvpe.infer_from_audio_with_pitch(x, thred=0.03, f0_min=self.f0_min, f0_max=self.f0_max)
         return f0
 
     def coarse_f0(self, f0):
