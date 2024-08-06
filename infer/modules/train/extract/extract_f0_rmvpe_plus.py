@@ -41,14 +41,14 @@ class FeatureInput(object):
         self.f0_mel_min = 1127 * np.log(1 + self.f0_min / 700)
         self.f0_mel_max = 1127 * np.log(1 + self.f0_max / 700)
 
-    def compute_f0(self, path, f0_method):
+    def compute_f0(self, path, f0_method, f0_min=1, f0_max=40000):
         x = load_audio(path, self.fs)
         if f0_method == "rmvpe+":
             if hasattr(self, "model_rmvpe"):
                 from infer.lib.rmvpe_plus import RMVPE_plus
                 print("Loading rmvpe+ model")
                 self.model_rmvpe = RMVPE_plus("assets/rmvpe/rmvpe.pt", is_half=False, device="cuda")
-            f0 = self.model_rmvpe.infer_from_audio_with_pitch(x, thred=0.03, f0_min=self.f0_min, f0_max=self.f0_max)
+            f0 = self.model_rmvpe.infer_from_audio_with_pitch(x, thred=0.03, f0_min=f0_min, f0_max=f0_max)
         return f0
 
     def coarse_f0(self, f0):
