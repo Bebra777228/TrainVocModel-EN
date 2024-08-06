@@ -29,12 +29,10 @@ def printt(strr):
     f.write("%s\n" % strr)
     f.flush()
 
-
 class FeatureInput(object):
     def __init__(self, samplerate=16000, hop_size=160):
         self.fs = samplerate
         self.hop = hop_size
-
         self.f0_bin = 256
         self.f0_max = 1100.0
         self.f0_min = 50.0
@@ -44,11 +42,14 @@ class FeatureInput(object):
     def compute_f0(self, path, f0_method, f0_min=1, f0_max=40000):
         x = load_audio(path, self.fs)
         if f0_method == "rmvpe+":
-            if hasattr(self, "model_rmvpe"):
+            if not hasattr(self, "model_rmvpe"):
                 from infer.lib.rmvpe_plus import RMVPE_plus
                 print("Loading rmvpe+ model")
-                self.model_rmvpe = RMVPE_plus("assets/rmvpe/rmvpe.pt", is_half=False, device="cuda")
+                self.model_rmvpe = RMVPE_plus("assets/rmvpe/rmvpe.pt", is_half=is_half, device="cuda")
             f0 = self.model_rmvpe.infer_from_audio_with_pitch(x, thred=0.03, f0_min=f0_min, f0_max=f0_max)
+        else:
+            raise ValueError("Unsupported f0 method: {}".format(f0_method))
+        
         return f0
 
     def coarse_f0(self, f0):
@@ -57,7 +58,6 @@ class FeatureInput(object):
             self.f0_bin - 2
         ) / (self.f0_mel_max - self.f0_mel_min) + 1
 
-        # use 0 or 1
         f0_mel[f0_mel <= 1] = 1
         f0_mel[f0_mel > self.f0_bin - 1] = self.f0_bin - 1
         f0_coarse = np.rint(f0_mel).astype(int)
@@ -72,31 +72,22 @@ class FeatureInput(object):
             printt("no-f0-todo")
         else:
             printt("todo-f0-%s" % len(paths))
-            n = max(len(paths) // 5, 1)  # 每个进程最多打印5条
+            n = max(len(paths) // 5, 1)  # каждое n-е сообщение
             for idx, (inp_path, opt_path1, opt_path2) in enumerate(paths):
                 try:
                     if idx % n == 0:
-                        printt("f0ing,now-%s,all-%s,-%s" % (idx, len(paths), inp_path))
+                        printt("f0ing, now-%s, all-%s, -%s" % (idx, len(paths), inp_path))
                     if (
-                        os.path.exists(opt_path1 + ".npy") == True
-                        and os.path.exists(opt_path2 + ".npy") == True
+                        os.path.exists(opt_path1 + ".npy") 
+                        and os.path.exists(opt_path2 + ".npy")
                     ):
                         continue
                     featur_pit = self.compute_f0(inp_path, f0_method)
-                    np.save(
-                        opt_path2,
-                        featur_pit,
-                        allow_pickle=False,
-                    )  # nsf
+                    np.save(opt_path2, featur_pit, allow_pickle=False)  # nsf
                     coarse_pit = self.coarse_f0(featur_pit)
-                    np.save(
-                        opt_path1,
-                        coarse_pit,
-                        allow_pickle=False,
-                    )  # ori
-                except:
+                    np.save(opt_path1, coarse_pit, allow_pickle=False)  # ori
+                except Exception as e:
                     printt("f0fail-%s-%s-%s" % (idx, inp_path, traceback.format_exc()))
-
 
 if __name__ == "__main__":
     printt(" ".join(sys.argv))
@@ -116,6 +107,6 @@ if __name__ == "__main__":
         opt_path2 = "%s/%s" % (opt_root2, name)
         paths.append([inp_path, opt_path1, opt_path2])
     try:
-        featureInput.go(paths[i_part::n_part], "rmvpe")
-    except:
+        featureInput.go(paths[i_part::n_part], "rmvpe+")
+    except Exception as e:
         printt("f0_all_fail-%s" % (traceback.format_exc()))
