@@ -4,7 +4,7 @@ import subprocess
 assets_folder = "./assets/"
 os.makedirs(assets_folder, exist_ok=True)
 
-hugg_link = "https://huggingface.co/Politrees/all_RVC-pretrained_and_other/resolve/main"
+hugg_link = "https://huggingface.co/Politrees/RVC_resources/resolve/main"
 file_links = {
     "rmvpe/rmvpe.pt": f"{hugg_link}/predictors/rmvpe.pt",
     "hubert/hubert_base.pt": f"{hugg_link}/embedders/contentvec_base.pt"
