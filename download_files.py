@@ -6,8 +6,8 @@ os.makedirs(assets_folder, exist_ok=True)
 
 hugg_link = "https://huggingface.co/Politrees/all_RVC-pretrained_and_other/resolve/main"
 file_links = {
-    "rmvpe/rmvpe.pt": f"{hugg_link}/other/rmvpe.pt",
-    "hubert/hubert_base.pt": f"{hugg_link}/HuBERTs/contentvec_base.pt"
+    "rmvpe/rmvpe.pt": f"{hugg_link}/predictors/rmvpe.pt",
+    "hubert/hubert_base.pt": f"{hugg_link}/embedders/contentvec_base.pt"
 }
 
 for file, link in file_links.items():
