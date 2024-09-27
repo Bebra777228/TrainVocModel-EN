@@ -79,6 +79,7 @@ from infer.lib.train.process_ckpt import savee
 global_step = 0
 prev_loss_disc = None
 prev_loss_gen_all = None
+prev_loss_fm = None
 
 class EpochRecorder:
     def __init__(self):
@@ -296,7 +297,7 @@ def train_and_evaluate(
         writer, writer_eval = writers
 
     train_loader.batch_sampler.set_epoch(epoch)
-    global global_step, prev_loss_disc, prev_loss_gen_all
+    global global_step, prev_loss_disc, prev_loss_gen_all, prev_loss_fm
 
     net_g.train()
     net_d.train()
@@ -489,7 +490,7 @@ def train_and_evaluate(
                 # Сравнение с предыдущими значениями и вывод соответствующих сообщений
                 if prev_loss_disc is not None:
                     if loss_disc > prev_loss_disc:
-                        disc_message = f"({green}↑ - Учится различать сгенерированные данные{reset})"
+                        disc_message = f"({green}↑ - Учится лучше различать сгенерированные данные{reset})"
                     else:
                         disc_message = f"({red}↓ - Хорошо различает сгенерированные данные{reset})"
                 else:
@@ -503,11 +504,21 @@ def train_and_evaluate(
                 else:
                     gen_message = ""
 
+                if prev_loss_fm is not None:
+                    if loss_gen_all > prev_loss_gen_all:
+                        gen_message = f"({red}↑ - Создает менее реалистичные данные{reset})"
+                    else:
+                        gen_message = f"({green}↓ - Создает более реалистичные данные{reset})"
+                else:
+                    gen_message = ""
+
                 logger.info(
                     "\n> "
                     f"loss/d/total = {loss_disc:.3f} — Потери Дискриминатора {disc_message}"
                     "\n> "
                     f"loss/g/total = {loss_gen_all:.3f} — Потери Генератора {gen_message}"
+                    "\n> "
+                    f"loss/g/fm = {loss_fm:.3f} — Потери соответствия признаков {fm_message}"
                 )
                 logger.info("")
 
@@ -541,9 +552,10 @@ def train_and_evaluate(
                     scalars=scalar_dict,
                 )
 
-                # Обновление предыдущих значений
+                # Обновление значений
                 prev_loss_disc = loss_disc
                 prev_loss_gen_all = loss_gen_all
+                prev_loss_fm = loss_fm
 
         global_step += 1
 
