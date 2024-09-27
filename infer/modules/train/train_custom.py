@@ -77,7 +77,8 @@ from infer.lib.train.mel_processing import mel_spectrogram_torch, spec_to_mel_to
 from infer.lib.train.process_ckpt import savee
 
 global_step = 0
-
+prev_loss_disc = None
+prev_loss_gen_all = None
 
 class EpochRecorder:
     def __init__(self):
@@ -295,7 +296,7 @@ def train_and_evaluate(
         writer, writer_eval = writers
 
     train_loader.batch_sampler.set_epoch(epoch)
-    global global_step
+    global global_step, prev_loss_disc, prev_loss_gen_all
 
     net_g.train()
     net_d.train()
@@ -481,9 +482,35 @@ def train_and_evaluate(
                 if loss_kl > 9:
                     loss_kl = 9
 
+                green = '\033[92m'
+                red = '\033[91m'
+                reset = '\033[0m'
+
+                # Сравнение с предыдущими значениями и вывод соответствующих сообщений
+                if prev_loss_disc is not None:
+                    if loss_disc > prev_loss_disc:
+                        disc_message = f"({green}↑ - Учится различать сгенерированные данные{reset})"
+                    else:
+                        disc_message = f"({red}↓ - Хорошо различает сгенерированные данные{reset})"
+                else:
+                    disc_message = ""
+
+                if prev_loss_gen_all is not None:
+                    if loss_gen_all > prev_loss_gen_all:
+                        gen_message = f"({red}↑ - Запоминает тренировочные данные{reset})"
+                    else:
+                        gen_message = f"({green}↓ - Создает более реалистичные данные{reset})"
+                else:
+                    gen_message = ""
+
                 logger.info(
-                    f"> loss_disc={loss_disc:.3f} + loss_gen={loss_gen:.3f} + loss_fm={loss_fm:.3f} + loss_mel={loss_mel:.3f} + loss_kl={loss_kl:.3f} ===> loss/g/total = {loss_gen_all:.3f}"
+                    "\n> "
+                    f"loss/d/total = {loss_disc:.3f} — Потери Дискриминатора {disc_message}"
+                    "\n> "
+                    f"loss/g/total = {loss_gen_all:.3f} — Потери Генератора {gen_message}"
                 )
+                logger.info("")
+
                 scalar_dict = {
                     "loss/g/total": loss_gen_all,
                     "loss/d/total": loss_disc,
@@ -513,6 +540,11 @@ def train_and_evaluate(
                     global_step=global_step,
                     scalars=scalar_dict,
                 )
+
+                # Обновление предыдущих значений
+                prev_loss_disc = loss_disc
+                prev_loss_gen_all = loss_gen_all
+
         global_step += 1
 
     if epoch % hps.save_every_epoch == 0 and rank == 0:
