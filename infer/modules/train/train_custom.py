@@ -506,11 +506,11 @@ def train_and_evaluate(
 
                 if prev_loss_fm is not None:
                     if loss_gen_all > prev_loss_gen_all:
-                        gen_message = f"({red}↑ - Создает менее реалистичные данные{reset})"
+                        fm_message = f"({red}↑ - Создает менее реалистичные данные{reset})"
                     else:
-                        gen_message = f"({green}↓ - Создает более реалистичные данные{reset})"
+                        fm_message = f"({green}↓ - Создает более реалистичные данные{reset})"
                 else:
-                    gen_message = ""
+                    fm_message = ""
 
                 logger.info(
                     "\n> "
