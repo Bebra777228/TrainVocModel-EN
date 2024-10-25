@@ -77,9 +77,6 @@ from infer.lib.train.mel_processing import mel_spectrogram_torch, spec_to_mel_to
 from infer.lib.train.process_ckpt import savee
 
 global_step = 0
-prev_loss_disc = None
-prev_loss_gen_all = None
-prev_loss_fm = None
 
 class EpochRecorder:
     def __init__(self):
@@ -91,7 +88,7 @@ class EpochRecorder:
         self.last_time = now_time
         elapsed_time_str = str(datetime.timedelta(seconds=elapsed_time))
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
-        return f"({elapsed_time_str}) - [{current_time}]"
+        return f"Скорость: [{elapsed_time_str}] | Время: [{current_time}]"
 
 
 def main():
@@ -297,7 +294,7 @@ def train_and_evaluate(
         writer, writer_eval = writers
 
     train_loader.batch_sampler.set_epoch(epoch)
-    global global_step, prev_loss_disc, prev_loss_gen_all, prev_loss_fm
+    global global_step
 
     net_g.train()
     net_d.train()
@@ -483,45 +480,6 @@ def train_and_evaluate(
                 if loss_kl > 9:
                     loss_kl = 9
 
-                green = '\033[92m'
-                red = '\033[91m'
-                reset = '\033[0m'
-
-                # Сравнение с предыдущими значениями и вывод соответствующих сообщений
-                if prev_loss_disc is not None:
-                    if loss_disc > prev_loss_disc:
-                        disc_message = f"({green}↑ - Учится лучше различать сгенерированные данные{reset})"
-                    else:
-                        disc_message = f"({red}↓ - Хорошо различает сгенерированные данные{reset})"
-                else:
-                    disc_message = ""
-
-                if prev_loss_gen_all is not None:
-                    if loss_gen_all > prev_loss_gen_all:
-                        gen_message = f"({red}↑ - Запоминает тренировочные данные{reset})"
-                    else:
-                        gen_message = f"({green}↓ - Создает более реалистичные данные{reset})"
-                else:
-                    gen_message = ""
-
-                if prev_loss_fm is not None:
-                    if loss_gen_all > prev_loss_gen_all:
-                        fm_message = f"({red}↑ - Создает менее реалистичные данные{reset})"
-                    else:
-                        fm_message = f"({green}↓ - Создает более реалистичные данные{reset})"
-                else:
-                    fm_message = ""
-
-                logger.info(
-                    "\n> "
-                    f"loss/d/total = {loss_disc:.3f} — Потери Дискриминатора {disc_message}"
-                    "\n> "
-                    f"loss/g/total = {loss_gen_all:.3f} — Потери Генератора {gen_message}"
-                    "\n> "
-                    f"loss/g/fm = {loss_fm:.3f} — Потери соответствия признаков {fm_message}"
-                )
-                logger.info("")
-
                 scalar_dict = {
                     "loss/g/total": loss_gen_all,
                     "loss/d/total": loss_disc,
@@ -551,11 +509,6 @@ def train_and_evaluate(
                     global_step=global_step,
                     scalars=scalar_dict,
                 )
-
-                # Обновление значений
-                prev_loss_disc = loss_disc
-                prev_loss_gen_all = loss_gen_all
-                prev_loss_fm = loss_fm
 
         global_step += 1
 
@@ -614,7 +567,7 @@ def train_and_evaluate(
             )
 
     if rank == 0:
-        logger.info("====> Эпоха: {}/{} - Шаг: {} | {}".format(epoch, hps.total_epoch, global_step, epoch_recorder.record()))
+        logger.info("====> Эпоха: {}/{} | Шаг: {} | {}".format(epoch, hps.total_epoch, global_step, epoch_recorder.record()))
     if epoch >= hps.total_epoch and rank == 0:
         logger.info("Тренировка успешно завершена. Завершение программы...")
 
