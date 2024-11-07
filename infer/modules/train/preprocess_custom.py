@@ -33,22 +33,22 @@ def println(strr):
 
 
 class PreProcess:
-    def __init__(self, sr, exp_dir, per=3.7):
+    def __init__(self, sr, exp_dir, per=4.0):
         self.slicer = Slicer(
             sr=sr,
-            threshold=-35,
+            threshold=-40,
             min_length=1000,
-            min_interval=200,
-            hop_size=10,
-            max_sil_kept=300,
+            min_interval=50,
+            hop_size=5,
+            max_sil_kept=1000,
         )
         self.sr = sr
         self.bh, self.ah = signal.butter(N=5, Wn=48, btype="high", fs=self.sr)
         self.per = per
         self.overlap = 0.2
         self.tail = self.per + self.overlap
-        self.max = 0.9
-        self.alpha = 0.75
+        self.max = 0.95
+        self.alpha = 0.8
         self.exp_dir = exp_dir
         self.gt_wavs_dir = "%s/0_gt_wavs" % exp_dir
         self.wavs16k_dir = "%s/1_16k_wavs" % exp_dir
