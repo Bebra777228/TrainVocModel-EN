@@ -37,7 +37,7 @@ class PreProcess:
         self.slicer = Slicer(
             sr=sr,
             threshold=-40,
-            min_length=1000,
+            min_length=1500,
             min_interval=50,
             hop_size=5,
             max_sil_kept=1000,
