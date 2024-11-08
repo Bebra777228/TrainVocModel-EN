@@ -12,12 +12,16 @@ def get_rms(
     Calculates the root mean square (RMS) of a waveform.
 
     Args:
-        y (numpy.ndarray): The waveform.
+        y (numpy.ndarray or torch.Tensor): The waveform.
         frame_length (int, optional): The length of the frame in samples. Defaults to 2048.
         hop_length (int, optional): The hop length between frames in samples. Defaults to 512.
         pad_mode (str, optional): The padding mode used for the waveform. Defaults to "constant".
     """
-    y = torch.tensor(y, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+    if isinstance(y, np.ndarray):
+        y = torch.tensor(y, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+    elif not isinstance(y, torch.Tensor):
+        raise ValueError("Input must be a numpy array or torch tensor")
+
     padding = (int(frame_length // 2), int(frame_length // 2))
     y = torch.nn.functional.pad(y, padding, mode=pad_mode)
 
@@ -119,6 +123,9 @@ class Slicer:
         Args:
             waveform (numpy.ndarray): The waveform to slice.
         """
+        if not isinstance(waveform, np.ndarray):
+            raise ValueError("Input must be a numpy array")
+
         # Calculate RMS for each frame
         samples = waveform.mean(axis=0) if len(waveform.shape) > 1 else waveform
         if samples.shape[0] <= self.min_length:
