@@ -471,46 +471,24 @@ def train_and_evaluate(
         scaler.step(optim_g)
         scaler.update()
 
-        if rank == 0:
-            if global_step % hps.train.log_interval == 0:
-                lr = optim_g.param_groups[0]["lr"]
-
-                if loss_mel > 75:
-                    loss_mel = 75
-                if loss_kl > 9:
-                    loss_kl = 9
-
-                scalar_dict = {
-                    "loss/g/total": loss_gen_all,
-                    "loss/d/total": loss_disc,
-                    "learning_rate": lr,
-                    "grad_norm_d": grad_norm_d,
-                    "grad_norm_g": grad_norm_g,
-                }
-                scalar_dict.update(
-                    {
-                        "loss/g/fm": loss_fm,
-                        "loss/g/mel": loss_mel,
-                        "loss/g/kl": loss_kl,
-                    }
-                )
-
-                scalar_dict.update(
-                    {"loss/g/{}".format(i): v for i, v in enumerate(losses_gen)}
-                )
-                scalar_dict.update(
-                    {"loss/d_r/{}".format(i): v for i, v in enumerate(losses_disc_r)}
-                )
-                scalar_dict.update(
-                    {"loss/d_g/{}".format(i): v for i, v in enumerate(losses_disc_g)}
-                )
-                utils.summarize(
-                    writer=writer,
-                    global_step=global_step,
-                    scalars=scalar_dict,
-                )
-
         global_step += 1
+
+    if rank == 0 and epoch % hps.train.log_interval == 0:
+        if loss_mel > 75:
+            loss_mel = 75
+        if loss_kl > 9:
+            loss_kl = 9
+
+        scalar_dict = {
+            "grad/norm_d": grad_norm_d,
+            "grad/norm_g": grad_norm_g,
+            "loss/g/total": loss_gen_all,
+            "loss/d/total": loss_disc,
+            "loss/g/fm": loss_fm,
+            "loss/g/mel": loss_mel,
+            "loss/g/kl": loss_kl,
+        }
+        utils.summarize(writer=writer, epoch=epoch, scalars=scalar_dict)
 
     if epoch % hps.save_every_epoch == 0 and rank == 0:
         if hps.if_latest == 0:
