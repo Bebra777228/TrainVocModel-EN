@@ -3,6 +3,10 @@ import sys
 import logging
 
 logger = logging.getLogger(__name__)
+logging.getLogger('tensorflow').setLevel(logging.INFO)
+logging.getLogger('h5py').setLevel(logging.INFO)
+logging.getLogger('jax').setLevel(logging.INFO)
+logging.getLogger('numexpr').setLevel(logging.INFO)
 
 now_dir = os.getcwd()
 sys.path.append(os.path.join(now_dir))
