@@ -248,7 +248,7 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
         optim_d, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2
     )
 
-    scaler = GradScaler(device_type='cuda', enabled=hps.train.fp16_run)
+    scaler = GradScaler(enabled=hps.train.fp16_run)
 
     cache = []
     for epoch in range(epoch_str, hps.train.epochs + 1):
