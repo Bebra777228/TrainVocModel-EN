@@ -8,8 +8,6 @@ from scipy.io import wavfile
 import librosa
 import numpy as np
 
-
-
 now_dir = os.getcwd()
 sys.path.append(now_dir)
 
