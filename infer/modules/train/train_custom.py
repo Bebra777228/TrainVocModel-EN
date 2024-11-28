@@ -216,13 +216,13 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
             if hasattr(net_g, "module"):
                 logger.info(
                     net_g.module.load_state_dict(
-                        torch.load(hps.pretrainG, map_location="cpu")["model"]
+                        torch.load(hps.pretrainG, map_location="cpu", weights_only=True)["model"]
                     )
                 )
             else:
                 logger.info(
                     net_g.load_state_dict(
-                        torch.load(hps.pretrainG, map_location="cpu")["model"]
+                        torch.load(hps.pretrainG, map_location="cpu", weights_only=True)["model"]
                     )
                 )
         if hps.pretrainD != "":
@@ -231,13 +231,13 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
             if hasattr(net_d, "module"):
                 logger.info(
                     net_d.module.load_state_dict(
-                        torch.load(hps.pretrainD, map_location="cpu")["model"]
+                        torch.load(hps.pretrainD, map_location="cpu", weights_only=True)["model"]
                     )
                 )
             else:
                 logger.info(
                     net_d.load_state_dict(
-                        torch.load(hps.pretrainD, map_location="cpu")["model"]
+                        torch.load(hps.pretrainD, map_location="cpu", weights_only=True)["model"]
                     )
                 )
 
