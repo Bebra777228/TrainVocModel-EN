@@ -21,9 +21,8 @@ i_gpu = sys.argv[3]
 os.environ["CUDA_VISIBLE_DEVICES"] = str(i_gpu)
 exp_dir = sys.argv[4]
 is_half = sys.argv[5]
+
 f = open("%s/extract_f0_feature.log" % exp_dir, "a+")
-
-
 def printt(strr):
     print(strr)
     f.write("%s\n" % strr)
@@ -43,16 +42,19 @@ class FeatureInput(object):
 
     def compute_f0(self, path, f0_method):
         x = load_audio(path, self.fs)
-        # p_len = x.shape[0] // self.hop
-        if f0_method == "rmvpe":
-            if hasattr(self, "model_rmvpe") == False:
-                from infer.lib.rmvpe import RMVPE
+        rmvpe_path = "assets/rmvpe/rmvpe.pt"
 
-                print("Loading rmvpe model")
-                self.model_rmvpe = RMVPE(
-                    "assets/rmvpe/rmvpe.pt", is_half=is_half, device="cuda"
-                )
+        if not hasattr(self, "model_rmvpe"):
+            print(f"Loading {f0_method} model")
+            self.model_rmvpe = RMVPE(rmvpe_path, is_half=is_half, device="cuda")
+
+        if f0_method == "rmvpe":
             f0 = self.model_rmvpe.infer_from_audio(x, thred=0.03)
+        elif f0_method == "rmvpe+":
+            f0 = self.model_rmvpe.infer_from_audio_modified(
+                x, thred=0.03, f0_min=50, f0_max=1100, window_size=5
+            )
+
         return f0
 
     def coarse_f0(self, f0):
