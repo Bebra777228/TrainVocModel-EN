@@ -12,6 +12,7 @@ import numpy as np
 import pyworld
 
 from infer.lib.audio import load_audio
+from infer.lib.rmvpe import RMVPE
 
 logging.getLogger("numba").setLevel(logging.WARNING)
 
@@ -23,7 +24,7 @@ exp_dir = sys.argv[4]
 is_half = sys.argv[5]
 f0_method = sys.argv[6]
 
-f = open("%s/extract_f0_feature.log" % exp_dir, "a+")
+f = open("%s/logfile.log" % exp_dir, "a+")
 def printt(strr):
     print(strr)
     f.write("%s\n" % strr)
@@ -46,7 +47,6 @@ class FeatureInput(object):
         rmvpe_path = "assets/rmvpe/rmvpe.pt"
 
         if not hasattr(self, "model_rmvpe"):
-            print(f"Загрузка {f0_method} модели...")
             self.model_rmvpe = RMVPE(rmvpe_path, is_half=is_half, device="cuda")
 
         if f0_method == "rmvpe":
@@ -134,3 +134,5 @@ if __name__ == "__main__":
         featureInput.go(paths[i_part::n_part], f0_method)
     except:
         printt(f"Ошибка извлечения тона!\n{traceback.format_exc()}")
+    printt("Тон извлечен!")
+    printt("\n\n")
