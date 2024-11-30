@@ -21,13 +21,13 @@ per = float(sys.argv[6])
 sr_trgt = sr
 
 # Log file
-f = open(f"{exp_dir}/preprocess.log", "a+")
+f = open(f"{exp_dir}/logfile.log", "a+")
 
 from infer.lib.audio import load_audio
 from infer.lib.slicer import Slicer
 
 
-def println(strr):
+def printt(strr):
     print(strr)
     f.write(f"{strr}\n")
     f.flush()
@@ -48,23 +48,23 @@ class PreProcess:
             sr=sr,
             threshold=-42,
             min_length=1500,
-            min_interval=200,
+            min_interval=400,
             hop_size=15,
             max_sil_kept=500,
         )
         self.sr = sr
         self.bh, self.ah = signal.butter(N=5, Wn=48, btype="high", fs=self.sr)
         self.per = per
-        self.overlap = 0.2
+        self.overlap = 0.3
         self.tail = self.per + self.overlap
-        self.max = 0.95
-        self.alpha = 0.8
+        self.max = 0.9
+        self.alpha = 0.75
         self.sr_trgt = sr_trgt
 
     def norm_write(self, tmp_audio, idx0, idx1):
         tmp_max = np.abs(tmp_audio).max()
         if tmp_max > 2.5:
-            println(f"{idx0}-{idx1}-{tmp_max}-filtered")
+            printt(f"{idx0}-{idx1}-{tmp_max}-filtered")
             return
 
         # Resample 0_gt -> target samplerate
@@ -115,9 +115,9 @@ class PreProcess:
                         self.norm_write(tmp_audio, idx0, idx1)
                         idx1 += 1
                         break
-            println(f"{path}\t-> Success")
+            printt(f"{path}\t-> Success")
         except Exception as e:
-            println(f"{path}\t-> {traceback.format_exc()}")
+            printt(f"{path}\t-> {traceback.format_exc()}")
 
     def pipeline_mp(self, infos):
         for path, idx0 in infos:
@@ -143,17 +143,19 @@ class PreProcess:
                 for p in ps:
                     p.join()
         except Exception as e:
-            println(f"Ошибка! {traceback.format_exc()}")
+            printt(f"Ошибка! {traceback.format_exc()}")
+            sys.exit(1)
 
 
 def preprocess_trainset(inp_root, sr, n_p, exp_dir, per):
     # Instantiate PreProcess class for this specific sid folder
-    println("Обработка...")
+    printt("Обработка датасета...")
     pp = PreProcess(sr, sr_trgt, exp_dir, per)
         
     # Run preprocessing on the current sid folder
     pp.pipeline_mp_inp_dir(inp_root, n_p)
-    println("Обработка успешно завершена!")
+    printt("Обработка успешно завершена!")
     
 if __name__ == "__main__":
     preprocess_trainset(inp_root, sr, n_p, exp_dir, per)
+    printt("\n\n")
