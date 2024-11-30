@@ -113,11 +113,6 @@ def load_checkpoint(checkpoint_path, model, optimizer=None, load_opt=1):
 
 
 def save_checkpoint(model, optimizer, learning_rate, iteration, checkpoint_path):
-    logger.info(
-        "Saving model and optimizer state at epoch {} to {}".format(
-            iteration, checkpoint_path
-        )
-    )
     if hasattr(model, "module"):
         state_dict = model.module.state_dict()
     else:
@@ -134,11 +129,6 @@ def save_checkpoint(model, optimizer, learning_rate, iteration, checkpoint_path)
 
 
 def save_checkpoint_d(combd, sbd, optimizer, learning_rate, iteration, checkpoint_path):
-    logger.info(
-        "Saving model and optimizer state at epoch {} to {}".format(
-            iteration, checkpoint_path
-        )
-    )
     if hasattr(combd, "module"):
         state_dict_combd = combd.module.state_dict()
     else:
@@ -245,22 +235,6 @@ def load_filepaths_and_text(filename, split="|"):
 
 
 def get_hparams(init=True):
-    """
-    todo:
-      结尾七人组：
-        保存频率、总epoch                     done
-        bs                                    done
-        pretrainG、pretrainD                  done
-        卡号：os.en["CUDA_VISIBLE_DEVICES"]   done
-        if_latest                             done
-      模型：if_f0                             done
-      采样率：自动选择config                  done
-      是否缓存数据集进GPU:if_cache_data_in_gpu done
-
-      -m:
-        自动决定training_files路径,改掉train_nsf_load_pretrain.py里的hps.data.training_files    done
-      -c不要了
-    """
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-se",
@@ -289,13 +263,6 @@ def get_hparams(init=True):
         "-sr", "--sample_rate", type=str, required=True, help="sample rate, 32k/40k/48k"
     )
     parser.add_argument(
-        "-sw",
-        "--save_every_weights",
-        type=str,
-        default="0",
-        help="save the extracted model in weights directory when saving checkpoints",
-    )
-    parser.add_argument(
         "-v", "--version", type=str, required=True, help="model version"
     )
     parser.add_argument(
@@ -304,13 +271,6 @@ def get_hparams(init=True):
         type=int,
         required=True,
         help="use f0 as one of the inputs of the model, 1 or 0",
-    )
-    parser.add_argument(
-        "-l",
-        "--if_latest",
-        type=int,
-        required=True,
-        help="if only save the latest G/D pth file, 1 or 0",
     )
     parser.add_argument(
         "-c",
@@ -340,8 +300,6 @@ def get_hparams(init=True):
     hparams.train.batch_size = args.batch_size
     hparams.sample_rate = args.sample_rate
     hparams.if_f0 = args.if_f0
-    hparams.if_latest = args.if_latest
-    hparams.save_every_weights = args.save_every_weights
     hparams.if_cache_data_in_gpu = args.if_cache_data_in_gpu
     hparams.data.training_files = "%s/filelist.txt" % experiment_dir
     return hparams
