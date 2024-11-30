@@ -9,7 +9,7 @@ from infer.lib import jit
 import torch.nn as nn
 import torch.nn.functional as F
 from librosa.util import normalize, pad_center, tiny
-from scipy.signal import get_window
+from scipy.signal import get_window, medfilt
 
 import logging
 
