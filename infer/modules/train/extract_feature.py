@@ -45,7 +45,7 @@ else:
 
     fairseq.modules.grad_multiply.GradMultiply.forward = forward_dml
 
-f = open(f"{model_name}/extract_f0_feature.log".format(exp_dir), "a+")
+f = open(f"{model_name}/logfile.log".format(exp_dir), "a+")
 
 def printt(strr):
     print(strr)
@@ -147,4 +147,4 @@ else:
                     printt(f"{idx}/{len(todo)} | {feats.shape}")
         except:
             printt(traceback.format_exc())
-    printt("Все признаки извлечены")
+    printt("Все признаки извлечены!")
