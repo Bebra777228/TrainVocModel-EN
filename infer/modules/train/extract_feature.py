@@ -6,20 +6,12 @@ import argparse
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
 
-model_name = sys.argv[4]
 device = sys.argv[1]
 n_part = int(sys.argv[2])
 i_part = int(sys.argv[3])
-if len(sys.argv) == 7:
-    exp_dir = sys.argv[4]
-    version = sys.argv[5]
-    is_half = sys.argv[6].lower() == "true"
-else:
-    i_gpu = sys.argv[4]
-    exp_dir = sys.argv[5]
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(i_gpu)
-    version = sys.argv[6]
-    is_half = sys.argv[7].lower() == "true"
+exp_dir = sys.argv[4]
+version = sys.argv[5]
+is_half = sys.argv[6].lower() == "true"
 import fairseq
 import numpy as np
 import soundfile as sf
@@ -45,21 +37,18 @@ else:
 
     fairseq.modules.grad_multiply.GradMultiply.forward = forward_dml
 
-f = open(f"{model_name}/logfile.log".format(exp_dir), "a+")
-
+f = open(f"{exp_dir}/log_files/logfile.log", "a+")
 def printt(strr):
     print(strr)
-    f.write("%s\n" % strr)
+    f.write(f"{strr}\n")
     f.flush()
 
 printt(" ".join(sys.argv))
 model_path = "assets/hubert/hubert_base.pt"
 
 printt("exp_dir: " + exp_dir)
-wavPath = f"{model_name}/1_16k_wavs".format(exp_dir)
-outPath = (
-    f"{model_name}/3_feature256".format(exp_dir) if version == "v1" else f"{model_name}/3_feature768".format(exp_dir)
-)
+wavPath = f"{exp_dir}/data/1_16k_wavs"
+outPath = f"{exp_dir}/data/3_feature256" if version == "v1" else f"{exp_dir}/data/3_feature768"
 os.makedirs(outPath, exist_ok=True)
 
 # wave must be 16k, hop_size=320
@@ -77,12 +66,11 @@ def readwave(wav_path, normalize=False):
     return feats
 
 # HuBERT model
-printt("load model(s) from {}".format(model_path))
+printt(f"load model(s) from {model_path}")
 # if hubert model is exist
 if os.access(model_path, os.F_OK) == False:
     printt(
-        "Error: Extracting is shut down because %s does not exist, you may download it from https://huggingface.co/lj1995/VoiceConversionWebUI/tree/main"
-        % model_path
+        f"Error: Extracting is shut down because {model_path} does not exist, you may download it from https://huggingface.co/lj1995/VoiceConversionWebUI/tree/main"
     )
     exit(0)
 models, saved_cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task(
@@ -91,7 +79,7 @@ models, saved_cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task(
 )
 model = models[0]
 model = model.to(device)
-printt("move model to %s" % device)
+printt(f"move model to {device}")
 if is_half:
     if device not in ["mps", "cpu"]:
         model = model.half()
@@ -115,8 +103,8 @@ else:
     for idx, file in enumerate(todo):
         try:
             if file.endswith(".wav"):
-                wav_path = "%s/%s" % (wavPath, file)
-                out_path = "%s/%s" % (outPath, file.replace("wav", "npy"))
+                wav_path = f"{wavPath}/{file}"
+                out_path = f"{outPath}/{file.replace("wav", "npy")}"
 
                 if os.path.exists(out_path):
                     continue

@@ -20,13 +20,11 @@ noparallel = sys.argv[5] == "True"
 per = float(sys.argv[6])
 sr_trgt = sr
 
-# Log file
-f = open(f"{exp_dir}/logfile.log", "a+")
-
 from infer.lib.audio import load_audio
 from infer.lib.slicer import Slicer
 
 
+f = open(f"{exp_dir}/log_files/logfile.log", "a+")
 def printt(strr):
     print(strr)
     f.write(f"{strr}\n")
@@ -36,8 +34,8 @@ def printt(strr):
 class PreProcess:
     def __init__(self, sr, sr_trgt, exp_dir, per=3.0):
         # Dynamically create directories under exp_dir
-        self.gt_wavs_dir = os.path.join(exp_dir, "0_gt_wavs")
-        self.wavs16k_dir = os.path.join(exp_dir, "1_16k_wavs")
+        self.gt_wavs_dir = os.path.join(exp_dir, "data", "0_gt_wavs")
+        self.wavs16k_dir = os.path.join(exp_dir, "data", "1_16k_wavs")
 
         # Create the directories
         os.makedirs(self.gt_wavs_dir, exist_ok=True)

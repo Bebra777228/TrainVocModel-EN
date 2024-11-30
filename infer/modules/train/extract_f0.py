@@ -24,10 +24,10 @@ exp_dir = sys.argv[4]
 is_half = sys.argv[5]
 f0_method = sys.argv[6]
 
-f = open("%s/logfile.log" % exp_dir, "a+")
+f = open(f"{exp_dir}/log_files/logfile.log", "a+")
 def printt(strr):
     print(strr)
-    f.write("%s\n" % strr)
+    f.write(f"{strr}\n")
     f.flush()
 
 
@@ -117,18 +117,18 @@ if __name__ == "__main__":
     printt(" ".join(sys.argv))
     featureInput = FeatureInput()
     paths = []
-    inp_root = "%s/1_16k_wavs" % (exp_dir)
-    opt_root1 = "%s/2a_f0" % (exp_dir)
-    opt_root2 = "%s/2b-f0nsf" % (exp_dir)
+    inp_root = f"{exp_dir}/data/1_16k_wavs"
+    opt_root1 = f"{exp_dir}/data/2a_f0"
+    opt_root2 = f"{exp_dir}/data/2b-f0nsf"
 
     os.makedirs(opt_root1, exist_ok=True)
     os.makedirs(opt_root2, exist_ok=True)
     for name in sorted(list(os.listdir(inp_root))):
-        inp_path = "%s/%s" % (inp_root, name)
+        inp_path = f"{inp_root}/{name}"
         if "spec" in inp_path:
             continue
-        opt_path1 = "%s/%s" % (opt_root1, name)
-        opt_path2 = "%s/%s" % (opt_root2, name)
+        opt_path1 = f"{opt_root1}/{name}"
+        opt_path2 = f"{opt_root2}/{name}"
         paths.append([inp_path, opt_path1, opt_path2])
     try:
         featureInput.go(paths[i_part::n_part], f0_method)

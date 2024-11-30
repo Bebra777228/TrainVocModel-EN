@@ -95,9 +95,8 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
     global global_step
 
     if rank == 0:
-        logger.info(hps)
-        writer = SummaryWriter(log_dir=hps.model_dir)
-        writer_eval = SummaryWriter(log_dir=os.path.join(hps.model_dir, "eval"))
+        writer = SummaryWriter(log_dir=os.path.join(hps.model_dir, "tensorboard_logs"))
+        writer_eval = SummaryWriter(log_dir=os.path.join(hps.model_dir, "tensorboard_logs", "eval"))
 
     backend = "gloo" if os.name == "nt" or not torch.cuda.is_available() else "nccl"
     try:
@@ -198,10 +197,10 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
 
     try:
         _, _, _, epoch_str = utils.load_checkpoint(
-            utils.latest_checkpoint_path(hps.model_dir, "D_*.pth"), net_d, optim_d
+            utils.latest_checkpoint_path(os.path.join(hps.model_dir, "checkpoints"), "D_*.pth"), net_d, optim_d
         )
         _, _, _, epoch_str = utils.load_checkpoint(
-            utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g, optim_g
+            utils.latest_checkpoint_path(os.path.join(hps.model_dir, "checkpoints"), "G_*.pth"), net_g, optim_g
         )
         global_step = (epoch_str - 1) * len(train_loader)
     except:
@@ -497,7 +496,7 @@ def train_and_evaluate(
             optim_g,
             hps.train.learning_rate,
             epoch,
-            os.path.join(hps.model_dir, "G_checkpoint.pth"),
+            os.path.join(hps.model_dir, "checkpoints", "G_checkpoint.pth"),
         )
         logger.info(f"Сохранение чекпоинта D_checkpoint.pth... (Эпоха: {epoch} | Шаг: {global_step})")
         utils.save_checkpoint(
@@ -505,7 +504,7 @@ def train_and_evaluate(
             optim_d,
             hps.train.learning_rate,
             epoch,
-            os.path.join(hps.model_dir, "D_checkpoint.pth"),
+            os.path.join(hps.model_dir, "checkpoints", "D_checkpoint.pth"),
         )
 
         logger.info(f"Сохранение модели {hps.name}_e{epoch}_s{global_step}.pth")
