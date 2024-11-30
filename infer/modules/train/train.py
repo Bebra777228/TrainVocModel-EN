@@ -97,6 +97,8 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
     if rank == 0:
         writer = SummaryWriter(log_dir=os.path.join(hps.model_dir, "tensorboard_logs"))
         writer_eval = SummaryWriter(log_dir=os.path.join(hps.model_dir, "tensorboard_logs", "eval"))
+    else:
+        writer, writer_eval = None, None
 
     backend = "gloo" if os.name == "nt" or not torch.cuda.is_available() else "nccl"
     try:
@@ -291,7 +293,7 @@ def train_and_evaluate(
     train_loader.batch_sampler.set_epoch(epoch)
 
     if writers is not None:
-        writer, writer_eval = writers
+        writer = writers[0]
 
     net_g.train()
     net_d.train()

@@ -104,7 +104,7 @@ else:
         try:
             if file.endswith(".wav"):
                 wav_path = f"{wavPath}/{file}"
-                out_path = f"{outPath}/{file.replace("wav", "npy")}"
+                out_path = f"{outPath}/{file.replace('wav', 'npy')}"
 
                 if os.path.exists(out_path):
                     continue

@@ -113,6 +113,7 @@ def load_checkpoint(checkpoint_path, model, optimizer=None, load_opt=1):
 
 
 def save_checkpoint(model, optimizer, learning_rate, iteration, checkpoint_path):
+    os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
     if hasattr(model, "module"):
         state_dict = model.module.state_dict()
     else:
@@ -301,7 +302,7 @@ def get_hparams(init=True):
     hparams.sample_rate = args.sample_rate
     hparams.if_f0 = args.if_f0
     hparams.if_cache_data_in_gpu = args.if_cache_data_in_gpu
-    hparams.data.training_files = "%s/filelist.txt" % experiment_dir
+    hparams.data.training_files = f"{experiment_dir}/log_files/filelist.txt"
     return hparams
 
 
