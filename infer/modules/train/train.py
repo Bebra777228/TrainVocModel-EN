@@ -525,7 +525,7 @@ def train_and_evaluate(
 
     if rank == 0 and epoch >= hps.total_epoch:
         ckpt = net_g.module.state_dict() if hasattr(net_g, "module") else net_g.state_dict()
-        logger.info(f"Сохранение финальной модели {hps.name}_latest.pth")
+        logger.info(f"Сохранение финальной модели {hps.name}.pth")
         save_model = savee(
             hps=hps,
             ckpt=ckpt,
@@ -533,7 +533,7 @@ def train_and_evaluate(
             name=hps.name,
             step=global_step,
             sr=hps.sample_rate,
-            save_path=f"assets/weights/{hps.name}_latest.pth",
+            save_path=f"assets/weights/{hps.name}.pth",
         )
         logger.info(save_model)
         logger.info("Тренировка успешно завершена. Завершение программы...")
