@@ -1,4 +1,3 @@
-import argparse
 import os
 import sys
 import json
@@ -40,14 +39,6 @@ class Config:
         self.gpu_name = None
         self.json_config = self.load_config_json()
         self.gpu_mem = None
-        (
-            self.python_cmd,
-            self.listen_port,
-            self.iscolab,
-            self.noparallel,
-            self.noautoopen,
-            self.dml,
-        ) = self.arg_parse()
         self.instead = ""
         self.preprocess_per = 3.7
         self.x_pad, self.x_query, self.x_center, self.x_max = self.device_config()
@@ -56,45 +47,12 @@ class Config:
     def load_config_json() -> dict:
         d = {}
         for config_file in version_config_list:
-            p = f"configs/inuse/{config_file}"
+            p = f"infer/configs/inuse/{config_file}"
             if not os.path.exists(p):
-                shutil.copy(f"configs/{config_file}", p)
-            with open(f"configs/inuse/{config_file}", "r") as f:
+                shutil.copy(f"infer/configs/{config_file}", p)
+            with open(f"infer/configs/inuse/{config_file}", "r") as f:
                 d[config_file] = json.load(f)
         return d
-
-    @staticmethod
-    def arg_parse() -> tuple:
-        exe = sys.executable or "python"
-        parser = argparse.ArgumentParser()
-        parser.add_argument("--port", type=int, default=7865, help="Listen port")
-        parser.add_argument("--pycmd", type=str, default=exe, help="Python command")
-        parser.add_argument("--colab", action="store_true", help="Launch in colab")
-        parser.add_argument(
-            "--noparallel", action="store_true", help="Disable parallel processing"
-        )
-        parser.add_argument(
-            "--noautoopen",
-            action="store_true",
-            help="Do not open in browser automatically",
-        )
-        parser.add_argument(
-            "--dml",
-            action="store_true",
-            help="torch_dml",
-        )
-        cmd_opts = parser.parse_args()
-
-        cmd_opts.port = cmd_opts.port if 0 <= cmd_opts.port <= 65535 else 7865
-
-        return (
-            cmd_opts.pycmd,
-            cmd_opts.port,
-            cmd_opts.colab,
-            cmd_opts.noparallel,
-            cmd_opts.noautoopen,
-            cmd_opts.dml,
-        )
 
     # has_mps is only available in nightly pytorch (for now) and MasOS 12.3+.
     # check `getattr` and try it for compatibility
@@ -118,9 +76,9 @@ class Config:
     def use_fp32_config(self):
         for config_file in version_config_list:
             self.json_config[config_file]["train"]["fp16_run"] = False
-            with open(f"configs/inuse/{config_file}", "r") as f:
+            with open(f"infer/configs/inuse/{config_file}", "r") as f:
                 strr = f.read().replace("true", "false")
-            with open(f"configs/inuse/{config_file}", "w") as f:
+            with open(f"infer/configs/inuse/{config_file}", "w") as f:
                 f.write(strr)
             logger.info("overwrite " + config_file)
         self.preprocess_per = 3.0
@@ -187,58 +145,4 @@ class Config:
             x_query = 5
             x_center = 30
             x_max = 32
-        if self.dml:
-            logger.info("Use DirectML instead")
-            if (
-                os.path.exists(
-                    "runtime\Lib\site-packages\onnxruntime\capi\DirectML.dll"
-                )
-                == False
-            ):
-                try:
-                    os.rename(
-                        "runtime\Lib\site-packages\onnxruntime",
-                        "runtime\Lib\site-packages\onnxruntime-cuda",
-                    )
-                except:
-                    pass
-                try:
-                    os.rename(
-                        "runtime\Lib\site-packages\onnxruntime-dml",
-                        "runtime\Lib\site-packages\onnxruntime",
-                    )
-                except:
-                    pass
-            # if self.device != "cpu":
-            import torch_directml
-
-            self.device = torch_directml.device(torch_directml.default_device())
-            self.is_half = False
-        else:
-            if self.instead:
-                logger.info(f"Use {self.instead} instead")
-            if (
-                os.path.exists(
-                    "runtime\Lib\site-packages\onnxruntime\capi\onnxruntime_providers_cuda.dll"
-                )
-                == False
-            ):
-                try:
-                    os.rename(
-                        "runtime\Lib\site-packages\onnxruntime",
-                        "runtime\Lib\site-packages\onnxruntime-dml",
-                    )
-                except:
-                    pass
-                try:
-                    os.rename(
-                        "runtime\Lib\site-packages\onnxruntime-cuda",
-                        "runtime\Lib\site-packages\onnxruntime",
-                    )
-                except:
-                    pass
-        logger.info(
-            "Half-precision floating-point: %s, device: %s"
-            % (self.is_half, self.device)
-        )
         return x_pad, x_query, x_center, x_max
