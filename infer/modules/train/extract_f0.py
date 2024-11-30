@@ -21,6 +21,7 @@ i_gpu = sys.argv[3]
 os.environ["CUDA_VISIBLE_DEVICES"] = str(i_gpu)
 exp_dir = sys.argv[4]
 is_half = sys.argv[5]
+f0_method = sys.argv[6]
 
 f = open("%s/extract_f0_feature.log" % exp_dir, "a+")
 def printt(strr):
@@ -45,7 +46,7 @@ class FeatureInput(object):
         rmvpe_path = "assets/rmvpe/rmvpe.pt"
 
         if not hasattr(self, "model_rmvpe"):
-            print(f"Loading {f0_method} model")
+            print(f"Загрузка {f0_method} модели...")
             self.model_rmvpe = RMVPE(rmvpe_path, is_half=is_half, device="cuda")
 
         if f0_method == "rmvpe":
@@ -63,7 +64,6 @@ class FeatureInput(object):
             self.f0_bin - 2
         ) / (self.f0_mel_max - self.f0_mel_min) + 1
 
-        # use 0 or 1
         f0_mel[f0_mel <= 1] = 1
         f0_mel[f0_mel > self.f0_bin - 1] = self.f0_bin - 1
         f0_coarse = np.rint(f0_mel).astype(int)
@@ -75,14 +75,23 @@ class FeatureInput(object):
 
     def go(self, paths, f0_method):
         if len(paths) == 0:
-            printt("no-f0-todo")
+            error_message = (
+                "ОШИБКА: Не найдено ни одного фрагмента для обработки.\n"
+                "Возможные причины:\n"
+                "1. Датасет не имеет звука.\n"
+                "2. Датасет слишком тихий.\n"
+                "3. Датасет слишком короткий."
+            )
+            printt(error_message)
+            sys.exit(1)
         else:
-            printt("todo-f0-%s" % len(paths))
-            n = max(len(paths) // 5, 1)  # 每个进程最多打印5条
+            printt(f"Фрагментов готовых к обработке - {len(paths)}")
+            printt("Извлечение тона...")
+            n = max(len(paths) // 5, 1)
             for idx, (inp_path, opt_path1, opt_path2) in enumerate(paths):
                 try:
                     if idx % n == 0:
-                        printt("f0ing,now-%s,all-%s,-%s" % (idx, len(paths), inp_path))
+                        printt(f"{idx}/{len(paths)}")
                     if (
                         os.path.exists(opt_path1 + ".npy") == True
                         and os.path.exists(opt_path2 + ".npy") == True
@@ -93,21 +102,18 @@ class FeatureInput(object):
                         opt_path2,
                         featur_pit,
                         allow_pickle=False,
-                    )  # nsf
+                    )
                     coarse_pit = self.coarse_f0(featur_pit)
                     np.save(
                         opt_path1,
                         coarse_pit,
                         allow_pickle=False,
-                    )  # ori
+                    )
                 except:
-                    printt("f0fail-%s-%s-%s" % (idx, inp_path, traceback.format_exc()))
+                    printt(f"Ошибка извлечения тона!\nФрагмент - {idx}\nФайл - {inp_path}\n{traceback.format_exc()}")
 
 
 if __name__ == "__main__":
-    # exp_dir=r"E:\codes\py39\dataset\mi-test"
-    # n_p=16
-    # f = open("%s/log_extract_f0.log"%exp_dir, "w")
     printt(" ".join(sys.argv))
     featureInput = FeatureInput()
     paths = []
@@ -125,19 +131,6 @@ if __name__ == "__main__":
         opt_path2 = "%s/%s" % (opt_root2, name)
         paths.append([inp_path, opt_path1, opt_path2])
     try:
-        featureInput.go(paths[i_part::n_part], "rmvpe")
+        featureInput.go(paths[i_part::n_part], f0_method)
     except:
-        printt("f0_all_fail-%s" % (traceback.format_exc()))
-    # ps = []
-    # for i in range(n_p):
-    #     p = Process(
-    #         target=featureInput.go,
-    #         args=(
-    #             paths[i::n_p],
-    #             f0method,
-    #         ),
-    #     )
-    #     ps.append(p)
-    #     p.start()
-    # for i in range(n_p):
-    #     ps[i].join()
+        printt(f"Ошибка извлечения тона!\n{traceback.format_exc()}")

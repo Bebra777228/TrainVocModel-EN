@@ -98,11 +98,20 @@ if is_half:
 model.eval()
 
 todo = sorted(list(os.listdir(wavPath)))[i_part::n_part]
-n = max(1, len(todo) // 10)  # 最多打印十条
+n = max(1, len(todo) // 10)
 if len(todo) == 0:
-    printt("no-feature-todo")
+    error_message = (
+        "ОШИБКА: Не найдено ни одного признака для обработки.\n"
+        "Возможные причины:\n"
+        "1. Датасет не имеет звука.\n"
+        "2. Датасет слишком тихий.\n"
+        "3. Датасет слишком короткий."
+    )
+    printt(error_message)
+    sys.exit(1)
 else:
-    printt("all-feature-%s" % len(todo))
+    printt(f"Признаков готовых к обработке - {len(todo)}")
+    printt("Извлечение признаков...")
     for idx, file in enumerate(todo):
         try:
             if file.endswith(".wav"):
@@ -121,7 +130,7 @@ else:
                         else feats.to(device)
                     ),
                     "padding_mask": padding_mask.to(device),
-                    "output_layer": 9 if version == "v1" else 12,  # layer 9
+                    "output_layer": 9 if version == "v1" else 12,
                 }
                 with torch.no_grad():
                     logits = model.extract_features(**inputs)
@@ -133,9 +142,9 @@ else:
                 if np.isnan(feats).sum() == 0:
                     np.save(out_path, feats, allow_pickle=False)
                 else:
-                    printt("%s-contains nan" % file)
+                    printt(f"Ошибка: Файл {file} содержит некорректные значения (NaN).")
                 if idx % n == 0:
-                    printt("now-%s,all-%s,%s,%s" % (len(todo), idx, file, feats.shape))
+                    printt(f"{idx}/{len(todo)} | {feats.shape}")
         except:
             printt(traceback.format_exc())
-    printt("all-feature-done")
+    printt("Все признаки извлечены")

@@ -143,17 +143,17 @@ class PreProcess:
                 for p in ps:
                     p.join()
         except Exception as e:
-            println(f"Fail. {traceback.format_exc()}")
+            println(f"Ошибка! {traceback.format_exc()}")
 
 
 def preprocess_trainset(inp_root, sr, n_p, exp_dir, per):
     # Instantiate PreProcess class for this specific sid folder
-    println(f"Processing...")
+    println("Обработка...")
     pp = PreProcess(sr, sr_trgt, exp_dir, per)
         
     # Run preprocessing on the current sid folder
     pp.pipeline_mp_inp_dir(inp_root, n_p)
-    println(f"end preprocess")
+    println("Обработка успешно завершена!")
     
 if __name__ == "__main__":
     preprocess_trainset(inp_root, sr, n_p, exp_dir, per)
