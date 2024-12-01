@@ -21,6 +21,8 @@ from scipy import signal
 now_dir = os.getcwd()
 sys.path.append(now_dir)
 
+from rvc.lib.predictors.RMVPE import RMVPE
+
 bh, ah = signal.butter(N=5, Wn=48, btype="high", fs=16000)
 
 input_audio_path2wav = {}
@@ -141,8 +143,6 @@ class Pipeline(object):
             f0 = f0[0].cpu().numpy()
         elif f0_method == "rmvpe":
             if not hasattr(self, "model_rmvpe"):
-                from infer.lib.rmvpe import RMVPE
-
                 logger.info(
                     "Loading rmvpe model,%s" % "%s/rmvpe.pt" % os.environ["rmvpe_root"]
                 )

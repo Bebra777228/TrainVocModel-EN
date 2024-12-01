@@ -11,8 +11,8 @@ import logging
 import numpy as np
 import pyworld
 
-from infer.lib.audio import load_audio
-from infer.lib.rmvpe import RMVPE
+from rvc.lib.audio import load_audio
+from rvc.lib.predictors.RMVPE import RMVPE
 
 logging.getLogger("numba").setLevel(logging.WARNING)
 

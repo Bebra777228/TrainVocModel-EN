@@ -7,8 +7,8 @@ sys.path.append(now_dir)
 from dotenv import load_dotenv
 from scipy.io import wavfile
 
-from infer.configs.config import Config
-from infer.modules.vc.modules import VC
+from rvc.configs.config import Config
+from rvc.infer.modules import VC
 
 ####
 # USAGE

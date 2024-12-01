@@ -23,26 +23,27 @@ logging.getLogger('numexpr').setLevel(logging.WARNING)
 
 sys.path.append(os.path.join(os.getcwd()))
 
-from infer.lib.train import utils
-from infer.lib.infer_pack import commons
-from infer.lib.train.data_utils import DistributedBucketSampler as Sampler
-from infer.lib.train.data_utils import TextAudioCollate as Collate
-from infer.lib.train.data_utils import TextAudioCollateMultiNSFsid as Collate_f0
-from infer.lib.train.data_utils import TextAudioLoader as Loader
-from infer.lib.train.data_utils import TextAudioLoaderMultiNSFsid as Loader_f0
-from infer.lib.train.losses import discriminator_loss, feature_loss, generator_loss, kl_loss
-from infer.lib.train.mel_processing import mel_spectrogram_torch, spec_to_mel_torch
-from infer.lib.train.process_ckpt import savee
+from rvc.train import utils
+from rvc.lib.algorithm.commons import slice_segments
+from rvc.lib.algorithm.commons import clip_grad_value_
+from rvc.train.data_utils import DistributedBucketSampler as Sampler
+from rvc.train.data_utils import TextAudioCollate as Collate
+from rvc.train.data_utils import TextAudioCollateMultiNSFsid as Collate_f0
+from rvc.train.data_utils import TextAudioLoader as Loader
+from rvc.train.data_utils import TextAudioLoaderMultiNSFsid as Loader_f0
+from rvc.train.losses import discriminator_loss, feature_loss, generator_loss, kl_loss
+from rvc.train.mel_processing import mel_spectrogram_torch, spec_to_mel_torch
+from rvc.train.extract.extract_model import savee
 
 hps = utils.get_hparams()
 if hps.version == "v1":
-    from infer.lib.infer_pack.models import MultiPeriodDiscriminator as Discriminator
-    from infer.lib.infer_pack.models import SynthesizerTrnMs256NSFsid as RVC_Model_f0
-    from infer.lib.infer_pack.models import SynthesizerTrnMs256NSFsid_nono as RVC_Model_nof0
+    from rvc.lib.algorithm.models import MultiPeriodDiscriminator as Discriminator
+    from rvc.lib.algorithm.models import SynthesizerTrnMs256NSFsid as RVC_Model_f0
+    from rvc.lib.algorithm.models import SynthesizerTrnMs256NSFsid_nono as RVC_Model_nof0
 else:
-    from infer.lib.infer_pack.models import MultiPeriodDiscriminatorV2 as Discriminator
-    from infer.lib.infer_pack.models import SynthesizerTrnMs768NSFsid as RVC_Model_f0
-    from infer.lib.infer_pack.models import SynthesizerTrnMs768NSFsid_nono as RVC_Model_nof0
+    from rvc.lib.algorithm.models import MultiPeriodDiscriminatorV2 as Discriminator
+    from rvc.lib.algorithm.models import SynthesizerTrnMs768NSFsid as RVC_Model_f0
+    from rvc.lib.algorithm.models import SynthesizerTrnMs768NSFsid_nono as RVC_Model_nof0
 
 os.environ["CUDA_VISIBLE_DEVICES"] = hps.gpus.replace("-", ",")
 n_gpus = len(hps.gpus.split("-"))
@@ -424,7 +425,7 @@ def train_and_evaluate(
                 hps.data.mel_fmin,
                 hps.data.mel_fmax,
             )
-            y_mel = commons.slice_segments(
+            y_mel = slice_segments(
                 mel, ids_slice, hps.train.segment_size // hps.data.hop_length
             )
             with autocast(device_type='cuda', enabled=False):
@@ -440,7 +441,7 @@ def train_and_evaluate(
                 )
             if hps.train.fp16_run == True:
                 y_hat_mel = y_hat_mel.half()
-            wave = commons.slice_segments(
+            wave = slice_segments(
                 wave, ids_slice * hps.data.hop_length, hps.train.segment_size
             )
 
@@ -452,7 +453,7 @@ def train_and_evaluate(
         optim_d.zero_grad()
         scaler.scale(loss_disc).backward()
         scaler.unscale_(optim_d)
-        grad_norm_d = commons.clip_grad_value_(net_d.parameters(), None)
+        grad_norm_d = clip_grad_value_(net_d.parameters(), None)
         scaler.step(optim_d)
 
         with autocast(device_type='cuda', enabled=hps.train.fp16_run):
@@ -466,7 +467,7 @@ def train_and_evaluate(
         optim_g.zero_grad()
         scaler.scale(loss_gen_all).backward()
         scaler.unscale_(optim_g)
-        grad_norm_g = commons.clip_grad_value_(net_g.parameters(), None)
+        grad_norm_g = clip_grad_value_(net_g.parameters(), None)
         scaler.step(optim_g)
         scaler.update()
 

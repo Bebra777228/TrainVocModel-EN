@@ -20,8 +20,8 @@ noparallel = sys.argv[5] == "True"
 per = float(sys.argv[6])
 sr_trgt = sr
 
-from infer.lib.audio import load_audio
-from infer.lib.slicer import Slicer
+from rvc.lib.audio import load_audio
+from rvc.train.preprocess.slicer import Slicer
 
 
 f = open(f"{exp_dir}/log_files/logfile.log", "a+")
