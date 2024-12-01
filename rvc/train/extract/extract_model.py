@@ -4,7 +4,7 @@ from collections import OrderedDict
 import torch
 
 
-def savee(
+def extract_model(
     sr,
     hps,
     ckpt,

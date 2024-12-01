@@ -33,7 +33,7 @@ from rvc.train.data_utils import TextAudioLoader as Loader
 from rvc.train.data_utils import TextAudioLoaderMultiNSFsid as Loader_f0
 from rvc.train.losses import discriminator_loss, feature_loss, generator_loss, kl_loss
 from rvc.train.mel_processing import mel_spectrogram_torch, spec_to_mel_torch
-from rvc.train.extract.extract_model import savee
+from rvc.train.extract.extract_model import extract_model
 
 hps = utils.get_hparams()
 if hps.version == "v1":
@@ -511,7 +511,7 @@ def train_and_evaluate(
         )
 
         logger.info(f"Сохранение модели {hps.name}_e{epoch}_s{global_step}.pth")
-        save_model = savee(
+        save_model = extract_model(
             hps=hps,
             ckpt=ckpt,
             epoch=epoch,
@@ -528,7 +528,7 @@ def train_and_evaluate(
     if rank == 0 and epoch >= hps.total_epoch:
         ckpt = net_g.module.state_dict() if hasattr(net_g, "module") else net_g.state_dict()
         logger.info(f"Сохранение финальной модели {hps.name}.pth")
-        save_model = savee(
+        save_model = extract_model(
             hps=hps,
             ckpt=ckpt,
             epoch=epoch,
