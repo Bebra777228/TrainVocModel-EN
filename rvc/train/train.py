@@ -518,6 +518,8 @@ def train_and_evaluate(
             name=hps.name,
             step=global_step,
             sr=hps.sample_rate,
+            version=hps.version,
+            if_f0=hps.if_f0,
             save_path=f"assets/weights/{hps.name}_e{epoch}_s{global_step}.pth",
         )
         logger.info(save_model)
@@ -535,6 +537,8 @@ def train_and_evaluate(
             name=hps.name,
             step=global_step,
             sr=hps.sample_rate,
+            version=hps.version,
+            if_f0=hps.if_f0,
             save_path=f"assets/weights/{hps.name}.pth",
         )
         logger.info(save_model)

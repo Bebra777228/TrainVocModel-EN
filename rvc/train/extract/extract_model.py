@@ -1,3 +1,5 @@
+import hashlib
+import datetime
 import traceback
 from collections import OrderedDict
 
@@ -11,6 +13,8 @@ def extract_model(
     name,
     step,
     epoch,
+    if_f0,
+    version,
     save_path,
 ):
     try:
@@ -41,11 +45,18 @@ def extract_model(
             hps.data.sampling_rate,
         ]
 
-        opt["model_name"] = name
         opt["epoch"] = f"e{epoch}"
         opt["step"] = f"s{step}"
-        opt["sample_rate"] = sr
-        opt["version"] = "RVCv2"
+        opt["sr"] = sr
+        opt["f0"] = if_f0
+        opt["version"] = version
+        opt["creation_date"] = datetime.datetime.now().isoformat()
+
+        hash_input = f"{str(ckpt)} {epoch} {step} {datetime.datetime.now().isoformat()}"
+        model_hash = hashlib.sha256(hash_input.encode()).hexdigest()
+        opt["model_hash"] = model_hash
+        opt["model_name"] = name
+        opt["learning_environment"] = "PolTrain"
 
         torch.save(opt, save_path)
 
