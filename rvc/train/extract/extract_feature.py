@@ -6,12 +6,11 @@ import argparse
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
 
-device = sys.argv[1]
-n_part = int(sys.argv[2])
-i_part = int(sys.argv[3])
-exp_dir = sys.argv[4]
-version = sys.argv[5]
-is_half = sys.argv[6].lower() == "true"
+n_part = int(sys.argv[1])
+i_part = int(sys.argv[2])
+exp_dir = sys.argv[3]
+version = sys.argv[4]
+is_half = sys.argv[5].lower() == "true"
 import fairseq
 import numpy as np
 import soundfile as sf
@@ -19,23 +18,12 @@ import torch
 import torch.nn.functional as F
 
 # Определение устройства
-if "privateuseone" not in device:
-    if torch.cuda.is_available():
-        device = "cuda"
-    elif torch.backends.mps.is_available():
-        device = "mps"
-    else:
-        device = "cpu"
+if torch.cuda.is_available():
+    device = "cuda"
+elif torch.backends.mps.is_available():
+    device = "mps"
 else:
-    import torch_directml
-    device = torch_directml.device(torch_directml.default_device())
-
-    def forward_dml(ctx, x, scale):
-        ctx.scale = scale
-        res = x.clone().detach()
-        return res
-
-    fairseq.modules.grad_multiply.GradMultiply.forward = forward_dml
+    device = "cpu"
 
 f = open(f"{exp_dir}/log_files/logfile.log", "a+")
 def printt(strr):
