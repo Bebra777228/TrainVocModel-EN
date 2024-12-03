@@ -226,7 +226,8 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
             optim_g,
         )
         global_step = (epoch_str - 1) * len(train_loader)
-    except:
+    except Exception as e:
+        logger.error(f"Failed to load checkpoint: {e}")
         epoch_str = 1
         global_step = 0
         if hps.pretrainG != "":

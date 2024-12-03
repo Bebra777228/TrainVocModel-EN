@@ -70,6 +70,7 @@ def load_checkpoint_d(checkpoint_path, combd, sbd, optimizer=None, load_opt=1):
 
 def load_checkpoint(checkpoint_path, model, optimizer=None, load_opt=1):
     assert os.path.isfile(checkpoint_path)
+    logger.info(f"Loading checkpoint from {checkpoint_path}")
     checkpoint_dict = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
 
     saved_state_dict = checkpoint_dict["model"]
@@ -77,8 +78,9 @@ def load_checkpoint(checkpoint_path, model, optimizer=None, load_opt=1):
         state_dict = model.module.state_dict()
     else:
         state_dict = model.state_dict()
+
     new_state_dict = {}
-    for k, v in state_dict.items():  # 模型需要的shape
+    for k, v in state_dict.items():
         try:
             new_state_dict[k] = saved_state_dict[k]
             if saved_state_dict[k].shape != state_dict[k].shape:
@@ -87,27 +89,29 @@ def load_checkpoint(checkpoint_path, model, optimizer=None, load_opt=1):
                     k,
                     state_dict[k].shape,
                     saved_state_dict[k].shape,
-                )  #
+                )
                 raise KeyError
         except:
-            # logger.info(traceback.format_exc())
-            logger.info("%s is not in the checkpoint", k)  # pretrain缺失的
-            new_state_dict[k] = v  # 模型自带的随机值
+            logger.info("%s is not in the checkpoint", k)
+            new_state_dict[k] = v
+
     if hasattr(model, "module"):
         model.module.load_state_dict(new_state_dict, strict=False)
     else:
         model.load_state_dict(new_state_dict, strict=False)
+
     logger.info("Loaded model weights")
 
     iteration = checkpoint_dict["iteration"]
     learning_rate = checkpoint_dict["learning_rate"]
-    if (
-        optimizer is not None and load_opt == 1
-    ):  ###加载不了，如果是空的的话，重新初始化，可能还会影响lr时间表的更新，因此在train文件最外围catch
-        #   try:
-        optimizer.load_state_dict(checkpoint_dict["optimizer"])
-    #   except:
-    #     traceback.print_exc()
+
+    if optimizer is not None and load_opt == 1:
+        try:
+            optimizer.load_state_dict(checkpoint_dict["optimizer"])
+            logger.info("Loaded optimizer state")
+        except Exception as e:
+            logger.error(f"Failed to load optimizer state: {e}")
+
     logger.info("Loaded checkpoint '{}' (epoch {})".format(checkpoint_path, iteration))
     return model, optimizer, learning_rate, iteration
 
