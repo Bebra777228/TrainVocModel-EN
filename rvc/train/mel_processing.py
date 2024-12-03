@@ -39,13 +39,13 @@ mel_basis = {}
 hann_window = {}
 
 
-def spectrogram_torch(y, n_fft, sampling_rate, hop_size, win_size, center=False):
+def spectrogram_torch(y, n_fft, sample_rate, hop_size, win_size, center=False):
     """Convert waveform into Linear-frequency Linear-amplitude spectrogram.
 
     Args:
         y             :: (B, T) - Audio waveforms
         n_fft
-        sampling_rate
+        sample_rate
         hop_size
         win_size
         center
@@ -89,14 +89,14 @@ def spectrogram_torch(y, n_fft, sampling_rate, hop_size, win_size, center=False)
     return spec
 
 
-def spec_to_mel_torch(spec, n_fft, num_mels, sampling_rate, fmin, fmax):
+def spec_to_mel_torch(spec, n_fft, num_mels, sample_rate, fmin, fmax):
     # MelBasis - Cache if needed
     global mel_basis
     dtype_device = str(spec.dtype) + "_" + str(spec.device)
     fmax_dtype_device = str(fmax) + "_" + dtype_device
     if fmax_dtype_device not in mel_basis:
         mel = librosa_mel_fn(
-            sr=sampling_rate, n_fft=n_fft, n_mels=num_mels, fmin=fmin, fmax=fmax
+            sr=sample_rate, n_fft=n_fft, n_mels=num_mels, fmin=fmin, fmax=fmax
         )
         mel_basis[fmax_dtype_device] = torch.from_numpy(mel).to(
             dtype=spec.dtype, device=spec.device
@@ -109,7 +109,7 @@ def spec_to_mel_torch(spec, n_fft, num_mels, sampling_rate, fmin, fmax):
 
 
 def mel_spectrogram_torch(
-    y, n_fft, num_mels, sampling_rate, hop_size, win_size, fmin, fmax, center=False
+    y, n_fft, num_mels, sample_rate, hop_size, win_size, fmin, fmax, center=False
 ):
     """Convert waveform into Mel-frequency Log-amplitude spectrogram.
 
@@ -119,9 +119,9 @@ def mel_spectrogram_torch(
         melspec :: (B, Freq, Frame) - Mel-frequency Log-amplitude spectrogram
     """
     # Linear-frequency Linear-amplitude spectrogram :: (B, T) -> (B, Freq, Frame)
-    spec = spectrogram_torch(y, n_fft, sampling_rate, hop_size, win_size, center)
+    spec = spectrogram_torch(y, n_fft, sample_rate, hop_size, win_size, center)
 
     # Mel-frequency Log-amplitude spectrogram :: (B, Freq, Frame) -> (B, Freq=num_mels, Frame)
-    melspec = spec_to_mel_torch(spec, n_fft, num_mels, sampling_rate, fmin, fmax)
+    melspec = spec_to_mel_torch(spec, n_fft, num_mels, sample_rate, fmin, fmax)
 
     return melspec

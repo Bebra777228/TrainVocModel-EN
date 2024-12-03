@@ -1,21 +1,20 @@
-import os
-import sys
 import json
-import shutil
+import logging
+import os
 from multiprocessing import cpu_count
 
 import torch
-import logging
 
 logger = logging.getLogger(__name__)
 
 
-version_config_list = [
-    "v1/32k.json",
-    "v1/40k.json",
-    "v1/48k.json",
-    "v2/48k.json",
-    "v2/32k.json",
+version_config_paths = [
+    os.path.join("v1", "32k.json"),
+    os.path.join("v1", "40k.json"),
+    os.path.join("v1", "48k.json"),
+    os.path.join("v2", "48k.json"),
+    os.path.join("v2", "40k.json"),
+    os.path.join("v2", "32k.json"),
 ]
 
 
@@ -32,11 +31,14 @@ def singleton_variable(func):
 @singleton_variable
 class Config:
     def __init__(self):
-        self.device = "cuda:0"
-        self.is_half = True
-        self.use_jit = False
+        self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        self.is_half = self.device != "cpu"
         self.n_cpu = 0
-        self.gpu_name = None
+        self.gpu_name = (
+            torch.cuda.get_device_name(int(self.device.split(":")[-1]))
+            if self.device.startswith("cuda")
+            else None
+        )
         self.json_config = self.load_config_json()
         self.gpu_mem = None
         self.instead = ""
@@ -44,15 +46,13 @@ class Config:
         self.x_pad, self.x_query, self.x_center, self.x_max = self.device_config()
 
     @staticmethod
-    def load_config_json() -> dict:
-        d = {}
-        for config_file in version_config_list:
-            p = f"rvc/configs/inuse/{config_file}"
-            if not os.path.exists(p):
-                shutil.copy(f"rvc/configs/{config_file}", p)
-            with open(f"rvc/configs/inuse/{config_file}", "r") as f:
-                d[config_file] = json.load(f)
-        return d
+    def load_config_json(self) -> dict:
+        configs = {}
+        for config_file in version_config_paths:
+            config_path = os.path.join("rvc", "configs", config_file)
+            with open(config_path, "r") as f:
+                configs[config_file] = json.load(f)
+        return configs
 
     # has_mps is only available in nightly pytorch (for now) and MasOS 12.3+.
     # check `getattr` and try it for compatibility
@@ -74,11 +74,12 @@ class Config:
             return False
 
     def use_fp32_config(self):
-        for config_file in version_config_list:
+        for config_file in version_config_paths:
+            config_path = os.path.join("rvc", "configs", config_file)
             self.json_config[config_file]["train"]["fp16_run"] = False
-            with open(f"rvc/configs/inuse/{config_file}", "r") as f:
+            with open(config_path, "r") as f:
                 strr = f.read().replace("true", "false")
-            with open(f"rvc/configs/inuse/{config_file}", "w") as f:
+            with open(config_path, "w") as f:
                 f.write(strr)
             logger.info("overwrite " + config_file)
         self.preprocess_per = 3.0

@@ -42,7 +42,7 @@ def extract_model(
             hps.model.upsample_kernel_sizes,
             hps.model.spk_embed_dim,
             hps.model.gin_channels,
-            hps.data.sampling_rate,
+            hps.data.sample_rate,
         ]
 
         opt["epoch"] = f"e{epoch}"

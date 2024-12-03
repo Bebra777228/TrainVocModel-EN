@@ -1,49 +1,59 @@
+import datetime
+import logging
 import os
 import sys
-import torch
-import logging
-import datetime
-import torch.distributed as dist
-import torch.multiprocessing as mp
-
+from random import randint, shuffle
 from time import sleep
 from time import time as ttime
-from random import randint, shuffle
-from torch.nn import functional as F
-from torch.utils.data import DataLoader
+
+import torch
+import torch.distributed as dist
+import torch.multiprocessing as mp
 from torch.amp import GradScaler, autocast
-from torch.utils.tensorboard import SummaryWriter
+from torch.nn import functional as F
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
-logger = logging.getLogger(__name__)
-logging.getLogger('tensorflow').setLevel(logging.WARNING)
-logging.getLogger('h5py').setLevel(logging.WARNING)
-logging.getLogger('jax').setLevel(logging.WARNING)
-logging.getLogger('numexpr').setLevel(logging.WARNING)
-
-sys.path.append(os.path.join(os.getcwd()))
-
-from rvc.train import utils
-from rvc.lib.algorithm.commons import slice_segments
-from rvc.lib.algorithm.commons import clip_grad_value_
+from rvc.lib.algorithm.commons import clip_grad_value_, slice_segments
 from rvc.train.data_utils import DistributedBucketSampler as Sampler
 from rvc.train.data_utils import TextAudioCollate as Collate
 from rvc.train.data_utils import TextAudioCollateMultiNSFsid as Collate_f0
 from rvc.train.data_utils import TextAudioLoader as Loader
 from rvc.train.data_utils import TextAudioLoaderMultiNSFsid as Loader_f0
+from rvc.train.extract.extract_model import extract_model
 from rvc.train.losses import discriminator_loss, feature_loss, generator_loss, kl_loss
 from rvc.train.mel_processing import mel_spectrogram_torch, spec_to_mel_torch
-from rvc.train.extract.extract_model import extract_model
+from rvc.train.utils import (
+    get_hparams,
+    get_logger,
+    latest_checkpoint_path,
+    load_checkpoint,
+    save_checkpoint,
+    summarize,
+)
 
-hps = utils.get_hparams()
+hps = get_hparams()
 if hps.version == "v1":
     from rvc.lib.algorithm.models import MultiPeriodDiscriminator as Discriminator
     from rvc.lib.algorithm.models import SynthesizerTrnMs256NSFsid as RVC_Model_f0
-    from rvc.lib.algorithm.models import SynthesizerTrnMs256NSFsid_nono as RVC_Model_nof0
+    from rvc.lib.algorithm.models import (
+        SynthesizerTrnMs256NSFsid_nono as RVC_Model_nof0,
+    )
 else:
     from rvc.lib.algorithm.models import MultiPeriodDiscriminatorV2 as Discriminator
     from rvc.lib.algorithm.models import SynthesizerTrnMs768NSFsid as RVC_Model_f0
-    from rvc.lib.algorithm.models import SynthesizerTrnMs768NSFsid_nono as RVC_Model_nof0
+    from rvc.lib.algorithm.models import (
+        SynthesizerTrnMs768NSFsid_nono as RVC_Model_nof0,
+    )
+
+logger = logging.getLogger(__name__)
+logging.getLogger("tensorflow").setLevel(logging.WARNING)
+logging.getLogger("h5py").setLevel(logging.WARNING)
+logging.getLogger("jax").setLevel(logging.WARNING)
+logging.getLogger("numexpr").setLevel(logging.WARNING)
+
+sys.path.append(os.path.join(os.getcwd()))
 
 os.environ["CUDA_VISIBLE_DEVICES"] = hps.gpus.replace("-", ",")
 n_gpus = len(hps.gpus.split("-"))
@@ -78,7 +88,7 @@ def main():
     os.environ["MASTER_PORT"] = str(randint(20000, 55555))
 
     children = []
-    logger = utils.get_logger(hps.model_dir)
+    logger = get_logger(hps.model_dir)
 
     for i in range(n_gpus):
         subproc = mp.Process(
@@ -97,7 +107,9 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
 
     if rank == 0:
         writer = SummaryWriter(log_dir=os.path.join(hps.model_dir, "tensorboard_logs"))
-        writer_eval = SummaryWriter(log_dir=os.path.join(hps.model_dir, "tensorboard_logs", "eval"))
+        writer_eval = SummaryWriter(
+            log_dir=os.path.join(hps.model_dir, "tensorboard_logs", "eval")
+        )
     else:
         writer, writer_eval = None, None
 
@@ -199,11 +211,19 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
         net_d = DDP(net_d)
 
     try:
-        _, _, _, epoch_str = utils.load_checkpoint(
-            utils.latest_checkpoint_path(os.path.join(hps.model_dir, "checkpoints"), "D_*.pth"), net_d, optim_d
+        _, _, _, epoch_str = load_checkpoint(
+            latest_checkpoint_path(
+                os.path.join(hps.model_dir, "checkpoints"), "D_*.pth"
+            ),
+            net_d,
+            optim_d,
         )
-        _, _, _, epoch_str = utils.load_checkpoint(
-            utils.latest_checkpoint_path(os.path.join(hps.model_dir, "checkpoints"), "G_*.pth"), net_g, optim_g
+        _, _, _, epoch_str = load_checkpoint(
+            latest_checkpoint_path(
+                os.path.join(hps.model_dir, "checkpoints"), "G_*.pth"
+            ),
+            net_g,
+            optim_g,
         )
         global_step = (epoch_str - 1) * len(train_loader)
     except:
@@ -215,13 +235,17 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
             if hasattr(net_g, "module"):
                 logger.info(
                     net_g.module.load_state_dict(
-                        torch.load(hps.pretrainG, map_location="cpu", weights_only=True)["model"]
+                        torch.load(
+                            hps.pretrainG, map_location="cpu", weights_only=True
+                        )["model"]
                     )
                 )
             else:
                 logger.info(
                     net_g.load_state_dict(
-                        torch.load(hps.pretrainG, map_location="cpu", weights_only=True)["model"]
+                        torch.load(
+                            hps.pretrainG, map_location="cpu", weights_only=True
+                        )["model"]
                     )
                 )
         if hps.pretrainD != "":
@@ -230,13 +254,17 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
             if hasattr(net_d, "module"):
                 logger.info(
                     net_d.module.load_state_dict(
-                        torch.load(hps.pretrainD, map_location="cpu", weights_only=True)["model"]
+                        torch.load(
+                            hps.pretrainD, map_location="cpu", weights_only=True
+                        )["model"]
                     )
                 )
             else:
                 logger.info(
                     net_d.load_state_dict(
-                        torch.load(hps.pretrainD, map_location="cpu", weights_only=True)["model"]
+                        torch.load(
+                            hps.pretrainD, map_location="cpu", weights_only=True
+                        )["model"]
                     )
                 )
 
@@ -250,7 +278,7 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
     scaler = GradScaler(enabled=hps.train.fp16_run)
 
     cache = []
-    for epoch in range(epoch_str, hps.train.epochs + 1):
+    for epoch in range(epoch_str, hps.total_epoch + 1):
         if rank == 0:
             train_and_evaluate(
                 rank,
@@ -400,7 +428,7 @@ def train_and_evaluate(
             spec_lengths = spec_lengths.cuda(rank, non_blocking=True)
             wave = wave.cuda(rank, non_blocking=True)
 
-        with autocast(device_type='cuda', enabled=hps.train.fp16_run):
+        with autocast(device_type="cuda", enabled=hps.train.fp16_run):
             if hps.if_f0 == 1:
                 (
                     y_hat,
@@ -421,19 +449,19 @@ def train_and_evaluate(
                 spec,
                 hps.data.filter_length,
                 hps.data.n_mel_channels,
-                hps.data.sampling_rate,
+                hps.data.sample_rate,
                 hps.data.mel_fmin,
                 hps.data.mel_fmax,
             )
             y_mel = slice_segments(
                 mel, ids_slice, hps.train.segment_size // hps.data.hop_length
             )
-            with autocast(device_type='cuda', enabled=False):
+            with autocast(device_type="cuda", enabled=False):
                 y_hat_mel = mel_spectrogram_torch(
                     y_hat.float().squeeze(1),
                     hps.data.filter_length,
                     hps.data.n_mel_channels,
-                    hps.data.sampling_rate,
+                    hps.data.sample_rate,
                     hps.data.hop_length,
                     hps.data.win_length,
                     hps.data.mel_fmin,
@@ -446,7 +474,7 @@ def train_and_evaluate(
             )
 
             y_d_hat_r, y_d_hat_g, _, _ = net_d(wave, y_hat.detach())
-            with autocast(device_type='cuda', enabled=False):
+            with autocast(device_type="cuda", enabled=False):
                 loss_disc, losses_disc_r, losses_disc_g = discriminator_loss(
                     y_d_hat_r, y_d_hat_g
                 )
@@ -456,9 +484,9 @@ def train_and_evaluate(
         grad_norm_d = clip_grad_value_(net_d.parameters(), None)
         scaler.step(optim_d)
 
-        with autocast(device_type='cuda', enabled=hps.train.fp16_run):
+        with autocast(device_type="cuda", enabled=hps.train.fp16_run):
             y_d_hat_r, y_d_hat_g, fmap_r, fmap_g = net_d(wave, y_hat)
-            with autocast(device_type='cuda', enabled=False):
+            with autocast(device_type="cuda", enabled=False):
                 loss_mel = F.l1_loss(y_mel, y_hat_mel) * hps.train.c_mel
                 loss_kl = kl_loss(z_p, logs_q, m_p, logs_p, z_mask) * hps.train.c_kl
                 loss_fm = feature_loss(fmap_r, fmap_g)
@@ -473,7 +501,7 @@ def train_and_evaluate(
 
         global_step += 1
 
-    if rank == 0 and epoch % hps.train.log_interval == 0:
+    if rank == 0 and epoch % hps.train.log_interval_epoch == 0:
         if loss_mel > 75:
             loss_mel = 75
         if loss_kl > 9:
@@ -488,21 +516,29 @@ def train_and_evaluate(
             "loss/g/mel": loss_mel,
             "loss/g/kl": loss_kl,
         }
-        utils.summarize(writer=writer, epoch=epoch, scalars=scalar_dict)
+        summarize(writer=writer, epoch=epoch, scalars=scalar_dict)
 
     if rank == 0 and epoch % hps.save_every_epoch == 0:
-        ckpt = net_g.module.state_dict() if hasattr(net_g, "module") else net_g.state_dict()
+        ckpt = (
+            net_g.module.state_dict()
+            if hasattr(net_g, "module")
+            else net_g.state_dict()
+        )
 
-        logger.info(f"Сохранение чекпоинта G_checkpoint.pth... (Эпоха: {epoch} | Шаг: {global_step})")
-        utils.save_checkpoint(
+        logger.info(
+            f"Сохранение чекпоинта G_checkpoint.pth... (Эпоха: {epoch} | Шаг: {global_step})"
+        )
+        save_checkpoint(
             net_g,
             optim_g,
             hps.train.learning_rate,
             epoch,
             os.path.join(hps.model_dir, "checkpoints", "G_checkpoint.pth"),
         )
-        logger.info(f"Сохранение чекпоинта D_checkpoint.pth... (Эпоха: {epoch} | Шаг: {global_step})")
-        utils.save_checkpoint(
+        logger.info(
+            f"Сохранение чекпоинта D_checkpoint.pth... (Эпоха: {epoch} | Шаг: {global_step})"
+        )
+        save_checkpoint(
             net_d,
             optim_d,
             hps.train.learning_rate,
@@ -516,29 +552,35 @@ def train_and_evaluate(
             ckpt=ckpt,
             epoch=epoch,
             name=hps.name,
+            if_f0=hps.if_f0,
             step=global_step,
             sr=hps.sample_rate,
             version=hps.version,
-            if_f0=hps.if_f0,
             save_path=f"assets/weights/{hps.name}_e{epoch}_s{global_step}.pth",
         )
         logger.info(save_model)
 
     if rank == 0:
-        logger.info(f"====> Эпоха: {epoch}/{hps.total_epoch} | Шаг: {global_step} | {epoch_recorder.record()}")
+        logger.info(
+            f"====> Эпоха: {epoch}/{hps.total_epoch} | Шаг: {global_step} | {epoch_recorder.record()}"
+        )
 
     if rank == 0 and epoch >= hps.total_epoch:
-        ckpt = net_g.module.state_dict() if hasattr(net_g, "module") else net_g.state_dict()
+        ckpt = (
+            net_g.module.state_dict()
+            if hasattr(net_g, "module")
+            else net_g.state_dict()
+        )
         logger.info(f"Сохранение финальной модели {hps.name}.pth")
         save_model = extract_model(
             hps=hps,
             ckpt=ckpt,
             epoch=epoch,
             name=hps.name,
+            if_f0=hps.if_f0,
             step=global_step,
             sr=hps.sample_rate,
             version=hps.version,
-            if_f0=hps.if_f0,
             save_path=f"assets/weights/{hps.name}.pth",
         )
         logger.info(save_model)
