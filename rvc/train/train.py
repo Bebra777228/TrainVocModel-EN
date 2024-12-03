@@ -15,6 +15,8 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
+sys.path.append(os.path.join(os.getcwd()))
+
 from rvc.lib.algorithm.commons import clip_grad_value_, slice_segments
 from rvc.train.data_utils import DistributedBucketSampler as Sampler
 from rvc.train.data_utils import TextAudioCollate as Collate
@@ -52,8 +54,6 @@ logging.getLogger("tensorflow").setLevel(logging.WARNING)
 logging.getLogger("h5py").setLevel(logging.WARNING)
 logging.getLogger("jax").setLevel(logging.WARNING)
 logging.getLogger("numexpr").setLevel(logging.WARNING)
-
-sys.path.append(os.path.join(os.getcwd()))
 
 os.environ["CUDA_VISIBLE_DEVICES"] = hps.gpus.replace("-", ",")
 n_gpus = len(hps.gpus.split("-"))
