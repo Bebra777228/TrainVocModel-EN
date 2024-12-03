@@ -13,7 +13,6 @@ i_part = int(sys.argv[2])
 exp_dir = sys.argv[3]
 version = sys.argv[4]
 is_half = sys.argv[5].lower() == "true"
-print(" ".join(sys.argv))
 
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
@@ -36,7 +35,6 @@ def printt(strr):
 
 model_path = "assets/hubert/hubert_base.pt"
 
-printt("exp_dir: " + exp_dir)
 wavPath = f"{exp_dir}/data/1_16k_wavs"
 outPath = (
     f"{exp_dir}/data/3_feature256"
@@ -59,8 +57,6 @@ def readwave(wav_path, normalize=False):
     feats = feats.view(1, -1)
     return feats
 
-
-printt(f"load model(s) from {model_path}")
 if os.access(model_path, os.F_OK) == False:
     printt(
         f"Error: Extracting is shut down because {model_path} does not exist, you may download it from https://huggingface.co/lj1995/VoiceConversionWebUI/tree/main"
@@ -72,7 +68,7 @@ models, saved_cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task(
 )
 model = models[0]
 model = model.to(device)
-printt(f"move model to {device}")
+
 if is_half:
     if device not in ["mps", "cpu"]:
         model = model.half()
@@ -91,7 +87,7 @@ if len(todo) == 0:
     printt(error_message)
     sys.exit(1)
 else:
-    printt(f"Признаков готовых к обработке - {len(todo)}")
+    printt(f"Фрагментов готовых к обработке - {len(todo)}")
     printt("Извлечение признаков...")
     for idx, file in enumerate(todo):
         try:

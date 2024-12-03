@@ -20,7 +20,6 @@ i_gpu = sys.argv[3]
 exp_dir = sys.argv[4]
 is_half = sys.argv[5]
 f0_method = sys.argv[6]
-print(" ".join(sys.argv))
 
 os.environ["CUDA_VISIBLE_DEVICES"] = str(i_gpu)
 
@@ -88,7 +87,7 @@ class FeatureInput(object):
             sys.exit(1)
         else:
             printt(f"Фрагментов готовых к обработке - {len(paths)}")
-            printt("Извлечение тона...")
+            printt(f"Извлечение тона методом '{f0_method}'...")
             n = max(len(paths) // 5, 1)
             for idx, (inp_path, opt_path1, opt_path2) in enumerate(paths):
                 try:

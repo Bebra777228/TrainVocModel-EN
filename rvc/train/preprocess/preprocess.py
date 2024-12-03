@@ -19,7 +19,6 @@ n_p = int(sys.argv[3])
 exp_dir = sys.argv[4]
 noparallel = sys.argv[5] == "True"
 per = float(sys.argv[6])
-print(" ".join(sys.argv))
 sr_trgt = sr
 
 f = open(f"{exp_dir}/log_files/logfile.log", "a+")
