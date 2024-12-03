@@ -1,4 +1,5 @@
 import os
+import sys
 import subprocess
 
 assets_folder = sys.argv[1]
