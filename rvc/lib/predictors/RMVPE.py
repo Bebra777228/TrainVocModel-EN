@@ -1,10 +1,10 @@
+from typing import List
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-
 from librosa.filters import mel
-from typing import List
 from scipy.signal import medfilt
 
 # Constants for readability

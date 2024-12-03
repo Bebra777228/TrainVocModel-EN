@@ -2,18 +2,13 @@ import argparse
 import os
 import sys
 
-now_dir = os.getcwd()
-sys.path.append(now_dir)
 from dotenv import load_dotenv
 from scipy.io import wavfile
 
+sys.path.append(os.getcwd())
+
 from rvc.configs.config import Config
 from rvc.infer.modules import VC
-
-####
-# USAGE
-#
-# In your Terminal or CMD or whatever
 
 
 def arg_parse() -> tuple:

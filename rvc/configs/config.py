@@ -54,8 +54,6 @@ class Config:
                 configs[config_file] = json.load(f)
         return configs
 
-    # has_mps is only available in nightly pytorch (for now) and MasOS 12.3+.
-    # check `getattr` and try it for compatibility
     @staticmethod
     def has_mps() -> bool:
         if not torch.backends.mps.is_available():
@@ -83,7 +81,7 @@ class Config:
                 f.write(strr)
             logger.info("overwrite " + config_file)
         self.preprocess_per = 3.0
-        logger.info("overwrite preprocess_per to %d" % (self.preprocess_per))
+        logger.info(f"overwrite preprocess_per to {self.preprocess_per}")
 
     def device_config(self) -> tuple:
         if torch.cuda.is_available():
@@ -100,11 +98,11 @@ class Config:
                 or "1070" in self.gpu_name
                 or "1080" in self.gpu_name
             ):
-                logger.info("Found GPU %s, force to fp32", self.gpu_name)
+                logger.info(f"Found GPU {self.gpu_name}, force to fp32")
                 self.is_half = False
                 self.use_fp32_config()
             else:
-                logger.info("Found GPU %s", self.gpu_name)
+                logger.info(f"Found GPU {self.gpu_name}")
             self.gpu_mem = int(
                 torch.cuda.get_device_properties(i_device).total_memory
                 / 1024
@@ -129,13 +127,11 @@ class Config:
             self.n_cpu = cpu_count()
 
         if self.is_half:
-            # 6G显存配置
             x_pad = 3
             x_query = 10
             x_center = 60
             x_max = 65
         else:
-            # 5G显存配置
             x_pad = 1
             x_query = 6
             x_center = 38

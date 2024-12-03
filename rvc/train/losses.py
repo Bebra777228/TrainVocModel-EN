@@ -41,10 +41,6 @@ def generator_loss(disc_outputs):
 
 
 def kl_loss(z_p, logs_q, m_p, logs_p, z_mask):
-    """
-    z_p, logs_q: [b, h, t_t]
-    m_p, logs_p: [b, h, t_t]
-    """
     z_p = z_p.float()
     logs_q = logs_q.float()
     m_p = m_p.float()

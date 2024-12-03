@@ -1,23 +1,23 @@
 import os
 import sys
 import traceback
-import argparse
 
-os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
-
-n_part = int(sys.argv[1])
-i_part = int(sys.argv[2])
-exp_dir = sys.argv[3]
-version = sys.argv[4]
-is_half = sys.argv[5].lower() == "true"
 import fairseq
 import numpy as np
 import soundfile as sf
 import torch
 import torch.nn.functional as F
 
-# Определение устройства
+n_part = int(sys.argv[1])
+i_part = int(sys.argv[2])
+exp_dir = sys.argv[3]
+version = sys.argv[4]
+is_half = sys.argv[5].lower() == "true"
+print(" ".join(sys.argv))
+
+os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
+
 if torch.cuda.is_available():
     device = "cuda"
 elif torch.backends.mps.is_available():
@@ -26,25 +26,31 @@ else:
     device = "cpu"
 
 f = open(f"{exp_dir}/log_files/logfile.log", "a+")
+
+
 def printt(strr):
     print(strr)
     f.write(f"{strr}\n")
     f.flush()
 
-printt(" ".join(sys.argv))
+
 model_path = "assets/hubert/hubert_base.pt"
 
 printt("exp_dir: " + exp_dir)
 wavPath = f"{exp_dir}/data/1_16k_wavs"
-outPath = f"{exp_dir}/data/3_feature256" if version == "v1" else f"{exp_dir}/data/3_feature768"
+outPath = (
+    f"{exp_dir}/data/3_feature256"
+    if version == "v1"
+    else f"{exp_dir}/data/3_feature768"
+)
 os.makedirs(outPath, exist_ok=True)
 
-# wave must be 16k, hop_size=320
+
 def readwave(wav_path, normalize=False):
     wav, sr = sf.read(wav_path)
     assert sr == 16000
     feats = torch.from_numpy(wav).float()
-    if feats.dim() == 2:  # double channels
+    if feats.dim() == 2:
         feats = feats.mean(-1)
     assert feats.dim() == 1, feats.dim()
     if normalize:
@@ -53,9 +59,8 @@ def readwave(wav_path, normalize=False):
     feats = feats.view(1, -1)
     return feats
 
-# HuBERT model
+
 printt(f"load model(s) from {model_path}")
-# if hubert model is exist
 if os.access(model_path, os.F_OK) == False:
     printt(
         f"Error: Extracting is shut down because {model_path} does not exist, you may download it from https://huggingface.co/lj1995/VoiceConversionWebUI/tree/main"

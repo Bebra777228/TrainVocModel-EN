@@ -3,28 +3,28 @@ import os
 import sys
 import traceback
 
-from scipy import signal
-from scipy.io import wavfile
 import librosa
 import numpy as np
+from scipy import signal
+from scipy.io import wavfile
 
-now_dir = os.getcwd()
-sys.path.append(now_dir)
+sys.path.append(os.getcwd())
 
-# Parse command-line arguments
+from rvc.lib.audio import load_audio
+from rvc.train.preprocess.slicer import Slicer
+
 inp_root = sys.argv[1]
 sr = int(sys.argv[2])
 n_p = int(sys.argv[3])
 exp_dir = sys.argv[4]
 noparallel = sys.argv[5] == "True"
 per = float(sys.argv[6])
+print(" ".join(sys.argv))
 sr_trgt = sr
 
-from rvc.lib.audio import load_audio
-from rvc.train.preprocess.slicer import Slicer
-
-
 f = open(f"{exp_dir}/log_files/logfile.log", "a+")
+
+
 def printt(strr):
     print(strr)
     f.write(f"{strr}\n")
@@ -33,15 +33,12 @@ def printt(strr):
 
 class PreProcess:
     def __init__(self, sr, sr_trgt, exp_dir, per=3.0):
-        # Dynamically create directories under exp_dir
         self.gt_wavs_dir = os.path.join(exp_dir, "data", "0_gt_wavs")
         self.wavs16k_dir = os.path.join(exp_dir, "data", "1_16k_wavs")
 
-        # Create the directories
         os.makedirs(self.gt_wavs_dir, exist_ok=True)
         os.makedirs(self.wavs16k_dir, exist_ok=True)
 
-        # Initialize other parameters
         self.slicer = Slicer(
             sr=sr,
             threshold=-42,
@@ -65,27 +62,24 @@ class PreProcess:
             printt(f"{idx0}-{idx1}-{tmp_max}-filtered")
             return
 
-        # Resample 0_gt -> target samplerate
         tmp_audio = librosa.resample(
-            tmp_audio, orig_sr=self.sr, target_sr=self.sr_trgt, res_type='soxr_vhq'
+            tmp_audio, orig_sr=self.sr, target_sr=self.sr_trgt, res_type="soxr_vhq"
         )
 
-        # Normalization step
-        tmp_audio = (tmp_audio / tmp_max * (self.max * self.alpha)) + (1 - self.alpha) * tmp_audio
+        tmp_audio = (tmp_audio / tmp_max * (self.max * self.alpha)) + (
+            1 - self.alpha
+        ) * tmp_audio
 
-        # Save normalized samples to 0_gt wavs folder as 32-bit float
         wavfile.write(
             f"{self.gt_wavs_dir}/{idx0}_{idx1}.wav",
             self.sr_trgt,
             tmp_audio.astype(np.float32),
         )
 
-        # Resample to 16kHz
         tmp_audio = librosa.resample(
-            tmp_audio, orig_sr=self.sr, target_sr=16000, res_type='soxr_vhq'
+            tmp_audio, orig_sr=self.sr, target_sr=16000, res_type="soxr_vhq"
         )
 
-        # Save normalized and resampled (to 16kHz) samples to 16k wavs folder as 32-bit float
         wavfile.write(
             f"{self.wavs16k_dir}/{idx0}_{idx1}.wav",
             16000,
@@ -95,7 +89,6 @@ class PreProcess:
     def pipeline(self, path, idx0):
         try:
             audio = load_audio(path, self.sr_trgt)
-            # Apply high-pass filter
             audio = signal.lfilter(self.bh, self.ah, audio)
 
             idx1 = 0
@@ -146,14 +139,13 @@ class PreProcess:
 
 
 def preprocess_trainset(inp_root, sr, n_p, exp_dir, per):
-    # Instantiate PreProcess class for this specific sid folder
     printt("Обработка датасета...")
     pp = PreProcess(sr, sr_trgt, exp_dir, per)
-        
-    # Run preprocessing on the current sid folder
+
     pp.pipeline_mp_inp_dir(inp_root, n_p)
     printt("Обработка успешно завершена!")
-    
+
+
 if __name__ == "__main__":
     preprocess_trainset(inp_root, sr, n_p, exp_dir, per)
     printt("\n\n")

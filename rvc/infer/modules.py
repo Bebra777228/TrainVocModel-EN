@@ -1,22 +1,22 @@
-import traceback
 import logging
-
-logger = logging.getLogger(__name__)
+import traceback
+from io import BytesIO
 
 import numpy as np
 import soundfile as sf
 import torch
-from io import BytesIO
 
-from rvc.lib.audio import load_audio, wav2
+from rvc.infer.pipeline import Pipeline
+from rvc.infer.utils import get_index_path_from_model, load_hubert
 from rvc.lib.algorithm.models import (
     SynthesizerTrnMs256NSFsid,
     SynthesizerTrnMs256NSFsid_nono,
     SynthesizerTrnMs768NSFsid,
     SynthesizerTrnMs768NSFsid_nono,
 )
-from rvc.infer.pipeline import Pipeline
-from rvc.infer.utils import *
+from rvc.lib.audio import load_audio, wav2
+
+logger = logging.getLogger(__name__)
 
 
 class VC:

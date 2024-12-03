@@ -1,15 +1,13 @@
+import logging
 import os
 import sys
 import traceback
 
-import parselmouth
-
-now_dir = os.getcwd()
-sys.path.append(now_dir)
-import logging
-
 import numpy as np
+import parselmouth
 import pyworld
+
+sys.path.append(os.getcwd())
 
 from rvc.lib.audio import load_audio
 from rvc.lib.predictors.RMVPE import RMVPE
@@ -19,12 +17,16 @@ logging.getLogger("numba").setLevel(logging.WARNING)
 n_part = int(sys.argv[1])
 i_part = int(sys.argv[2])
 i_gpu = sys.argv[3]
-os.environ["CUDA_VISIBLE_DEVICES"] = str(i_gpu)
 exp_dir = sys.argv[4]
 is_half = sys.argv[5]
 f0_method = sys.argv[6]
+print(" ".join(sys.argv))
+
+os.environ["CUDA_VISIBLE_DEVICES"] = str(i_gpu)
 
 f = open(f"{exp_dir}/log_files/logfile.log", "a+")
+
+
 def printt(strr):
     print(strr)
     f.write(f"{strr}\n")
@@ -110,11 +112,12 @@ class FeatureInput(object):
                         allow_pickle=False,
                     )
                 except:
-                    printt(f"Ошибка извлечения тона!\nФрагмент - {idx}\nФайл - {inp_path}\n{traceback.format_exc()}")
+                    printt(
+                        f"Ошибка извлечения тона!\nФрагмент - {idx}\nФайл - {inp_path}\n{traceback.format_exc()}"
+                    )
 
 
 if __name__ == "__main__":
-    printt(" ".join(sys.argv))
     featureInput = FeatureInput()
     paths = []
     inp_root = f"{exp_dir}/data/1_16k_wavs"

@@ -1,10 +1,7 @@
+import logging
 import os
 import sys
 import traceback
-import logging
-
-logger = logging.getLogger(__name__)
-
 from functools import lru_cache
 from time import time as ttime
 
@@ -18,10 +15,12 @@ import torch.nn.functional as F
 import torchcrepe
 from scipy import signal
 
-now_dir = os.getcwd()
-sys.path.append(now_dir)
+sys.path.append(os.getcwd())
 
 from rvc.lib.predictors.RMVPE import RMVPE
+
+logger = logging.getLogger(__name__)
+
 
 bh, ah = signal.butter(N=5, Wn=48, btype="high", fs=16000)
 

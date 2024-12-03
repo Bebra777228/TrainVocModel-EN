@@ -1,8 +1,6 @@
+import logging
 import os
 import traceback
-import logging
-
-logger = logging.getLogger(__name__)
 
 import numpy as np
 import torch
@@ -11,14 +9,10 @@ import torch.utils.data
 from rvc.train.mel_processing import spectrogram_torch
 from rvc.train.utils import load_filepaths_and_text, load_wav_to_torch
 
+logger = logging.getLogger(__name__)
+
 
 class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
-    """
-    1) loads audio, text pairs
-    2) normalizes text and converts them to sequences of integers
-    3) computes spectrograms from audio files.
-    """
-
     def __init__(self, audiopaths_and_text, hparams):
         self.audiopaths_and_text = load_filepaths_and_text(audiopaths_and_text)
         self.max_wav_value = hparams.max_wav_value
@@ -32,12 +26,6 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
         self._filter()
 
     def _filter(self):
-        """
-        Filter text & store spec lengths
-        """
-        # Store spectrogram lengths for Bucketing
-        # wav_length ~= file_size / (wav_channels * Bytes per dim) = file_size / (1 * 2)
-        # spec_length = wav_length // hop_length
         audiopaths_and_text_new = []
         lengths = []
         for audiopath, text, pitch, pitchf, dv in self.audiopaths_and_text:
@@ -52,7 +40,6 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
         return sid
 
     def get_audio_text_pair(self, audiopath_and_text):
-        # separate filename and text
         file = audiopath_and_text[0]
         phone = audiopath_and_text[1]
         pitch = audiopath_and_text[2]
@@ -65,10 +52,8 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
 
         len_phone = phone.size()[0]
         len_spec = spec.size()[-1]
-        # print(123,phone.shape,pitch.shape,spec.shape)
         if len_phone != len_spec:
             len_min = min(len_phone, len_spec)
-            # amor
             len_wav = len_min * self.hop_length
 
             spec = spec[:, :len_min]
@@ -85,8 +70,7 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
         phone = np.repeat(phone, 2, axis=0)
         pitch = np.load(pitch)
         pitchf = np.load(pitchf)
-        n_num = min(phone.shape[0], 900)  # DistributedBucketSampler
-        # print(234,phone.shape,pitch.shape)
+        n_num = min(phone.shape[0], 900)
         phone = phone[:n_num, :]
         pitch = pitch[:n_num]
         pitchf = pitchf[:n_num]
@@ -99,21 +83,16 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
         audio, sample_rate = load_wav_to_torch(filename)
         if sample_rate != self.sample_rate:
             raise ValueError(
-                "{} SR doesn't match target {} SR".format(
-                    sample_rate, self.sample_rate
-                )
+                f"{sample_rate} SR doesn't match target {self.sample_rate} SR"
             )
         audio_norm = audio
-        #        audio_norm = audio / self.max_wav_value
-        #        audio_norm = audio / np.abs(audio).max()
-
         audio_norm = audio_norm.unsqueeze(0)
         spec_filename = filename.replace(".wav", ".spec.pt")
         if os.path.exists(spec_filename):
             try:
                 spec = torch.load(spec_filename, weights_only=True)
             except:
-                logger.warning("%s %s", spec_filename, traceback.format_exc())
+                logger.warning(f"{spec_filename} - {traceback.format_exc()}")
                 spec = spectrogram_torch(
                     audio_norm,
                     self.filter_length,
@@ -145,18 +124,10 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
 
 
 class TextAudioCollateMultiNSFsid:
-    """Zero-pads model inputs and targets"""
-
     def __init__(self, return_ids=False):
         self.return_ids = return_ids
 
     def __call__(self, batch):
-        """Collate's training batch from normalized text and aduio
-        PARAMS
-        ------
-        batch: [text_normalized, spec_normalized, wav_normalized]
-        """
-        # Right zero-pad all one-hot text sequences to max input length
         _, ids_sorted_decreasing = torch.sort(
             torch.LongTensor([x[0].size(1) for x in batch]), dim=0, descending=True
         )
@@ -174,13 +145,12 @@ class TextAudioCollateMultiNSFsid:
         phone_lengths = torch.LongTensor(len(batch))
         phone_padded = torch.FloatTensor(
             len(batch), max_phone_len, batch[0][2].shape[1]
-        )  # (spec, wav, phone, pitch)
+        )
         pitch_padded = torch.LongTensor(len(batch), max_phone_len)
         pitchf_padded = torch.FloatTensor(len(batch), max_phone_len)
         phone_padded.zero_()
         pitch_padded.zero_()
         pitchf_padded.zero_()
-        # dv = torch.FloatTensor(len(batch), 256)#gin=256
         sid = torch.LongTensor(len(batch))
 
         for i in range(len(ids_sorted_decreasing)):
@@ -203,7 +173,6 @@ class TextAudioCollateMultiNSFsid:
             pitchf = row[4]
             pitchf_padded[i, : pitchf.size(0)] = pitchf
 
-            # dv[i] = row[5]
             sid[i] = row[5]
 
         return (
@@ -215,18 +184,11 @@ class TextAudioCollateMultiNSFsid:
             spec_lengths,
             wave_padded,
             wave_lengths,
-            # dv
             sid,
         )
 
 
 class TextAudioLoader(torch.utils.data.Dataset):
-    """
-    1) loads audio, text pairs
-    2) normalizes text and converts them to sequences of integers
-    3) computes spectrograms from audio files.
-    """
-
     def __init__(self, audiopaths_and_text, hparams):
         self.audiopaths_and_text = load_filepaths_and_text(audiopaths_and_text)
         self.max_wav_value = hparams.max_wav_value
@@ -240,12 +202,6 @@ class TextAudioLoader(torch.utils.data.Dataset):
         self._filter()
 
     def _filter(self):
-        """
-        Filter text & store spec lengths
-        """
-        # Store spectrogram lengths for Bucketing
-        # wav_length ~= file_size / (wav_channels * Bytes per dim) = file_size / (1 * 2)
-        # spec_length = wav_length // hop_length
         audiopaths_and_text_new = []
         lengths = []
         for audiopath, text, dv in self.audiopaths_and_text:
@@ -260,7 +216,6 @@ class TextAudioLoader(torch.utils.data.Dataset):
         return sid
 
     def get_audio_text_pair(self, audiopath_and_text):
-        # separate filename and text
         file = audiopath_and_text[0]
         phone = audiopath_and_text[1]
         dv = audiopath_and_text[2]
@@ -282,7 +237,7 @@ class TextAudioLoader(torch.utils.data.Dataset):
     def get_labels(self, phone):
         phone = np.load(phone)
         phone = np.repeat(phone, 2, axis=0)
-        n_num = min(phone.shape[0], 900)  # DistributedBucketSampler
+        n_num = min(phone.shape[0], 900)
         phone = phone[:n_num, :]
         phone = torch.FloatTensor(phone)
         return phone
@@ -291,21 +246,16 @@ class TextAudioLoader(torch.utils.data.Dataset):
         audio, sample_rate = load_wav_to_torch(filename)
         if sample_rate != self.sample_rate:
             raise ValueError(
-                "{} SR doesn't match target {} SR".format(
-                    sample_rate, self.sample_rate
-                )
+                f"{sample_rate} SR doesn't match target {self.sample_rate} SR"
             )
         audio_norm = audio
-        #        audio_norm = audio / self.max_wav_value
-        #        audio_norm = audio / np.abs(audio).max()
-
         audio_norm = audio_norm.unsqueeze(0)
         spec_filename = filename.replace(".wav", ".spec.pt")
         if os.path.exists(spec_filename):
             try:
                 spec = torch.load(spec_filename, weights_only=True)
             except:
-                logger.warning("%s %s", spec_filename, traceback.format_exc())
+                logger.warning(f"{spec_filename} - {traceback.format_exc()}")
                 spec = spectrogram_torch(
                     audio_norm,
                     self.filter_length,
@@ -337,18 +287,10 @@ class TextAudioLoader(torch.utils.data.Dataset):
 
 
 class TextAudioCollate:
-    """Zero-pads model inputs and targets"""
-
     def __init__(self, return_ids=False):
         self.return_ids = return_ids
 
     def __call__(self, batch):
-        """Collate's training batch from normalized text and aduio
-        PARAMS
-        ------
-        batch: [text_normalized, spec_normalized, wav_normalized]
-        """
-        # Right zero-pad all one-hot text sequences to max input length
         _, ids_sorted_decreasing = torch.sort(
             torch.LongTensor([x[0].size(1) for x in batch]), dim=0, descending=True
         )
@@ -399,15 +341,6 @@ class TextAudioCollate:
 
 
 class DistributedBucketSampler(torch.utils.data.distributed.DistributedSampler):
-    """
-    Maintain similar input lengths in a batch.
-    Length groups are specified by boundaries.
-    Ex) boundaries = [b1, b2, b3] -> any batch is included either {x | b1 < length(x) <=b2} or {x | b2 < length(x) <= b3}.
-
-    It removes samples which are not included in the boundaries.
-    Ex) boundaries = [b1, b2, b3] -> any x s.t. length(x) <= b1 or length(x) > b3 are discarded.
-    """
-
     def __init__(
         self,
         dataset,
@@ -450,7 +383,6 @@ class DistributedBucketSampler(torch.utils.data.distributed.DistributedSampler):
         return buckets, num_samples_per_bucket
 
     def __iter__(self):
-        # deterministically shuffle based on epoch
         g = torch.Generator()
         g.manual_seed(self.epoch)
 
@@ -469,7 +401,6 @@ class DistributedBucketSampler(torch.utils.data.distributed.DistributedSampler):
             ids_bucket = indices[i]
             num_samples_bucket = self.num_samples_per_bucket[i]
 
-            # add extra samples to make it evenly divisible
             rem = num_samples_bucket - len_bucket
             ids_bucket = (
                 ids_bucket
@@ -477,10 +408,8 @@ class DistributedBucketSampler(torch.utils.data.distributed.DistributedSampler):
                 + ids_bucket[: (rem % len_bucket)]
             )
 
-            # subsample
             ids_bucket = ids_bucket[self.rank :: self.num_replicas]
 
-            # batching
             for j in range(len(ids_bucket) // self.batch_size):
                 batch = [
                     bucket[idx]

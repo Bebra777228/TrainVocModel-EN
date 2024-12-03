@@ -1,8 +1,8 @@
-import platform, os
+import platform
+
+import av
 import ffmpeg
 import numpy as np
-import av
-from io import BytesIO
 
 
 def wav2(i, o, format):
@@ -30,10 +30,7 @@ def wav2(i, o, format):
 
 def load_audio(file, sr):
     try:
-        # https://github.com/openai/whisper/blob/main/whisper/audio.py#L26
-        # This launches a subprocess to decode audio while down-mixing and resampling as necessary.
-        # Requires the ffmpeg CLI and `ffmpeg-python` package to be installed.
-        file = clean_path(file)  # 防止小白拷路径头尾带了空格和"和回车
+        file = clean_path(file)
         out, _ = (
             ffmpeg.input(file, threads=0)
             .output("-", format="f32le", acodec="pcm_f32le", ac=1, ar=sr)
