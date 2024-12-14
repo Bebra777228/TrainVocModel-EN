@@ -9,6 +9,16 @@ import sys
 import numpy as np
 import torch
 from scipy.io.wavfile import read
+import warnings
+
+# Remove this to see warnings about transformers models
+warnings.filterwarnings("ignore")
+
+logging.getLogger("fairseq").setLevel(logging.ERROR)
+logging.getLogger("faiss.loader").setLevel(logging.ERROR)
+logging.getLogger("transformers").setLevel(logging.ERROR)
+logging.getLogger("torch").setLevel(logging.ERROR)
+
 
 MATPLOTLIB_FLAG = False
 
@@ -291,7 +301,7 @@ def get_hparams(init=True):
     hparams.sample_rate = args.sample_rate
     hparams.if_f0 = args.if_f0
     hparams.if_cache_data_in_gpu = args.if_cache_data_in_gpu
-    hparams.data.training_files = f"{experiment_dir}/log_files/filelist.txt"
+    hparams.data.training_files = f"{experiment_dir}/filelist.txt"
     return hparams
 
 
@@ -344,7 +354,7 @@ def get_logger(model_dir, filename="train.log"):
     formatter = logging.Formatter("%(asctime)s\t%(name)s\t%(levelname)s\t%(message)s")
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
-    h = logging.FileHandler(os.path.join(model_dir, "log_files", filename))
+    h = logging.FileHandler(os.path.join(model_dir, filename))
     h.setLevel(logging.DEBUG)
     h.setFormatter(formatter)
     logger.addHandler(h)

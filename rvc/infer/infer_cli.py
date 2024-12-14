@@ -1,3 +1,4 @@
+import logging
 import argparse
 import os
 import sys
@@ -10,6 +11,10 @@ sys.path.append(os.getcwd())
 from rvc.configs.config import Config
 from rvc.infer.modules import VC
 
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("faiss").setLevel(logging.WARNING)
+logging.getLogger("faiss.loader").setLevel(logging.WARNING)
 
 def arg_parse() -> tuple:
     parser = argparse.ArgumentParser()

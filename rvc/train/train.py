@@ -54,6 +54,7 @@ logging.getLogger("tensorflow").setLevel(logging.WARNING)
 logging.getLogger("h5py").setLevel(logging.WARNING)
 logging.getLogger("jax").setLevel(logging.WARNING)
 logging.getLogger("numexpr").setLevel(logging.WARNING)
+logging.getLogger("torch").setLevel(logging.WARNING)
 
 os.environ["CUDA_VISIBLE_DEVICES"] = hps.gpus.replace("-", ",")
 n_gpus = len(hps.gpus.split("-"))

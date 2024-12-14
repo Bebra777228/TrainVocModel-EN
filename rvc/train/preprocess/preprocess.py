@@ -1,3 +1,4 @@
+import logging
 import multiprocessing
 import os
 import sys
@@ -13,6 +14,10 @@ sys.path.append(os.getcwd())
 from rvc.lib.audio import load_audio
 from rvc.train.preprocess.slicer import Slicer
 
+logging.getLogger("numba.core.byteflow").setLevel(logging.WARNING)
+logging.getLogger("numba.core.ssa").setLevel(logging.WARNING)
+logging.getLogger("numba.core.interpreter").setLevel(logging.WARNING)
+
 inp_root = sys.argv[1]
 sr = int(sys.argv[2])
 n_p = int(sys.argv[3])
@@ -21,7 +26,7 @@ noparallel = sys.argv[5] == "True"
 per = float(sys.argv[6])
 sr_trgt = sr
 
-f = open(f"{exp_dir}/log_files/logfile.log", "a+")
+f = open(f"{exp_dir}/logfile.log", "a+")
 
 
 def printt(strr):

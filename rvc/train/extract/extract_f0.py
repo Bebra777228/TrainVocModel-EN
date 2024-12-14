@@ -23,7 +23,7 @@ f0_method = sys.argv[6]
 
 os.environ["CUDA_VISIBLE_DEVICES"] = str(i_gpu)
 
-f = open(f"{exp_dir}/log_files/logfile.log", "a+")
+f = open(f"{exp_dir}/logfile.log", "a+")
 
 
 def printt(strr):
@@ -36,7 +36,8 @@ class FeatureInput(object):
     def __init__(self, samplerate=16000, hop_size=160):
         self.fs = samplerate
         self.hop = hop_size
-
+        self.window_size = 5
+        self.thred = 0.03
         self.f0_bin = 256
         self.f0_max = 1100.0
         self.f0_min = 50.0
@@ -50,12 +51,20 @@ class FeatureInput(object):
         if not hasattr(self, "model_rmvpe"):
             self.model_rmvpe = RMVPE(rmvpe_path, is_half=is_half, device="cuda")
 
-        if f0_method == "rmvpe":
-            f0 = self.model_rmvpe.infer_from_audio(x, thred=0.03)
-        elif f0_method == "rmvpe+":
-            f0 = self.model_rmvpe.infer_from_audio_modified(
-                x, thred=0.03, f0_min=50, f0_max=1100, window_size=5
+        if f0_method == "harvest":
+            f0, t = pyworld.harvest(
+                x.astype(np.double),
+                fs=self.fs,
+                f0_ceil=self.f0_max,
+                f0_floor=self.f0_min,
+                frame_period=1000 * self.hop / self.fs,
             )
+            f0 = pyworld.stonemask(x.astype(np.double), f0, t, self.fs)
+
+        elif f0_method == "rmvpe":
+            f0 = self.model_rmvpe.infer_from_audio(x, self.thred)
+        elif f0_method == "rmvpe+":
+            f0 = self.model_rmvpe.infer_from_audio_modified(x, self.thred, self.f0_min, self.f0_max, self.window_size)
 
         return f0
 
@@ -111,9 +120,7 @@ class FeatureInput(object):
                         allow_pickle=False,
                     )
                 except:
-                    printt(
-                        f"Ошибка извлечения тона!\nФрагмент - {idx}\nФайл - {inp_path}\n{traceback.format_exc()}"
-                    )
+                    printt(f"Ошибка извлечения тона!\nФрагмент - {idx}\nФайл - {inp_path}\n{traceback.format_exc()}")
 
 
 if __name__ == "__main__":

@@ -20,6 +20,7 @@ sys.path.append(os.getcwd())
 from rvc.lib.predictors.RMVPE import RMVPE
 
 logger = logging.getLogger(__name__)
+logging.getLogger("faiss").setLevel(logging.WARNING)
 
 
 bh, ah = signal.butter(N=5, Wn=48, btype="high", fs=16000)

@@ -24,7 +24,7 @@ elif torch.backends.mps.is_available():
 else:
     device = "cpu"
 
-f = open(f"{exp_dir}/log_files/logfile.log", "a+")
+f = open(f"{exp_dir}/logfile.log", "a+")
 
 
 def printt(strr):
