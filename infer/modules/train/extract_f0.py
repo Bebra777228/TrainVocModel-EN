@@ -126,9 +126,9 @@ class FeatureInput(object):
 if __name__ == "__main__":
     featureInput = FeatureInput()
     paths = []
-    inp_root = f"{exp_dir}/data/1_16k_wavs"
-    opt_root1 = f"{exp_dir}/data/2a_f0"
-    opt_root2 = f"{exp_dir}/data/2b-f0nsf"
+    inp_root = f"{exp_dir}/1_16k_wavs"
+    opt_root1 = f"{exp_dir}/2a_f0"
+    opt_root2 = f"{exp_dir}/2b-f0nsf"
 
     os.makedirs(opt_root1, exist_ok=True)
     os.makedirs(opt_root2, exist_ok=True)

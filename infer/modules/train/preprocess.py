@@ -32,8 +32,8 @@ def printt(strr):
 
 class PreProcess:
     def __init__(self, sr, sr_trgt, exp_dir, per=3.0):
-        self.gt_wavs_dir = os.path.join(exp_dir, "data", "0_gt_wavs")
-        self.wavs16k_dir = os.path.join(exp_dir, "data", "1_16k_wavs")
+        self.gt_wavs_dir = os.path.join(exp_dir, "0_gt_wavs")
+        self.wavs16k_dir = os.path.join(exp_dir, "1_16k_wavs")
 
         os.makedirs(self.gt_wavs_dir, exist_ok=True)
         os.makedirs(self.wavs16k_dir, exist_ok=True)

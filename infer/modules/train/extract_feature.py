@@ -35,11 +35,11 @@ def printt(strr):
 
 model_path = "assets/hubert/hubert_base.pt"
 
-wavPath = f"{exp_dir}/data/1_16k_wavs"
+wavPath = f"{exp_dir}/1_16k_wavs"
 outPath = (
-    f"{exp_dir}/data/3_feature256"
+    f"{exp_dir}/3_feature256"
     if version == "v1"
-    else f"{exp_dir}/data/3_feature768"
+    else f"{exp_dir}/3_feature768"
 )
 os.makedirs(outPath, exist_ok=True)
 
