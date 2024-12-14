@@ -90,7 +90,8 @@ class EpochRecorder:
         now_time = ttime()
         elapsed_time = now_time - self.last_time
         self.last_time = now_time
-        elapsed_time_str = str(datetime.timedelta(seconds=elapsed_time))
+        elapsed_time = round(elapsed_time, 1)
+        elapsed_time_str = str(datetime.timedelta(seconds=int(elapsed_time)))
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
         return f"Скорость: [{elapsed_time_str}] | Время: [{current_time}]"
 
