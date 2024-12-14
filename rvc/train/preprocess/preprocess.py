@@ -1,4 +1,3 @@
-import logging
 import multiprocessing
 import os
 import sys
@@ -13,10 +12,6 @@ sys.path.append(os.getcwd())
 
 from rvc.lib.audio import load_audio
 from rvc.train.preprocess.slicer import Slicer
-
-logging.getLogger("numba.core.byteflow").setLevel(logging.WARNING)
-logging.getLogger("numba.core.ssa").setLevel(logging.WARNING)
-logging.getLogger("numba.core.interpreter").setLevel(logging.WARNING)
 
 inp_root = sys.argv[1]
 sr = int(sys.argv[2])
