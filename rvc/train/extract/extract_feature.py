@@ -125,3 +125,4 @@ else:
         except:
             printt(traceback.format_exc())
     printt("Все признаки извлечены!")
+    printt("\n\n")

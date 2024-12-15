@@ -301,7 +301,7 @@ def get_hparams(init=True):
     hparams.sample_rate = args.sample_rate
     hparams.if_f0 = args.if_f0
     hparams.if_cache_data_in_gpu = args.if_cache_data_in_gpu
-    hparams.data.training_files = f"{experiment_dir}/filelist.txt"
+    hparams.data.training_files = f"{experiment_dir}/data/filelist.txt"
     return hparams
 
 
@@ -346,7 +346,7 @@ def check_git_hash(model_dir):
         open(path, "w").write(cur_hash)
 
 
-def get_logger(model_dir, filename="train.log"):
+def get_logger(model_dir, filename="logfile.log"):
     global logger
     logger = logging.getLogger(os.path.basename(model_dir))
     logger.setLevel(logging.DEBUG)

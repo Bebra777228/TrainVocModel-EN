@@ -73,7 +73,8 @@ class EpochRecorder:
         now_time = ttime()
         elapsed_time = now_time - self.last_time
         self.last_time = now_time
-        elapsed_time_str = str(datetime.timedelta(seconds=elapsed_time))
+        elapsed_time = round(elapsed_time, 1)
+        elapsed_time_str = str(datetime.timedelta(seconds=int(elapsed_time)))
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
         return f"Скорость: [{elapsed_time_str}] | Время: [{current_time}]"
 
@@ -228,7 +229,7 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
         )
         global_step = (epoch_str - 1) * len(train_loader)
     except Exception as e:
-        logger.error(f"Failed to load checkpoint: {e}")
+        logger.error(f"Ошибка загрузки чекпоинта: {e}")
         epoch_str = 1
         global_step = 0
         if hps.pretrainG != "":
