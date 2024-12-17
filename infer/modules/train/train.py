@@ -556,16 +556,18 @@ def train_and_evaluate(
                         ckpt,
                         hps.sample_rate,
                         hps.if_f0,
-                        hps.name + "_e%s_s%s" % (epoch, global_step),
+                        hps.name,
                         epoch,
+                        global_step,
                         hps.version,
+                        save_path=f"{hps.model_dir}/weights/{hps.name}_e{epoch}_s{global_step}.pth",
                         hps,
                     ),
                 )
             )
 
     if rank == 0:
-        logger.info("====> Эпоха: {}/{} | Шаг: {} | {}".format(epoch, hps.total_epoch, global_step, epoch_recorder.record()))
+        logger.info(f"====> Эпоха: {epoch}/{hps.total_epoch} | Шаг: {global_step} | {epoch_recorder.record()}")
     if epoch >= hps.total_epoch and rank == 0:
         logger.info("Тренировка успешно завершена. Завершение программы...")
 
@@ -577,7 +579,15 @@ def train_and_evaluate(
             "Финальная модель успешно сохранена: %s"
             % (
                 savee(
-                    ckpt, hps.sample_rate, hps.if_f0, hps.name, epoch, hps.version, hps
+                    ckpt,
+                    hps.sample_rate,
+                    hps.if_f0,
+                    hps.name,
+                    epoch,
+                    global_step,
+                    hps.version,
+                    save_path=f"{hps.model_dir}/weights/{hps.name}_e{epoch}_s{global_step}.pth",
+                    hps,
                 )
             )
         )

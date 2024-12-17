@@ -6,7 +6,17 @@ from collections import OrderedDict
 import torch
 
 
-def savee(ckpt, sr, if_f0, name, epoch, version, hps):
+def savee(
+    ckpt,
+    sr,
+    if_f0,
+    name,
+    epoch,
+    step,
+    version,
+    save_path,
+    hps,
+):
     try:
         opt = OrderedDict()
         opt["weight"] = {}
@@ -34,11 +44,19 @@ def savee(ckpt, sr, if_f0, name, epoch, version, hps):
             hps.model.gin_channels,
             hps.data.sampling_rate,
         ]
-        opt["info"] = "%sepoch" % epoch
+
+        opt["model_name"] = name
+        opt["epoch"] = f"e{epoch}"
+        opt["step"] = f"s{step}"
+        
         opt["sr"] = sr
         opt["f0"] = if_f0
         opt["version"] = version
-        torch.save(opt, "assets/weights/%s.pth" % name)
+
+        opt["learning_environment"] = "PolTrain"
+
+        torch.save(opt, save_path)
+
         return "Success."
     except:
         return traceback.format_exc()
