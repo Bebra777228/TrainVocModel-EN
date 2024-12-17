@@ -559,7 +559,7 @@ def train_and_evaluate(
             step=global_step,
             sr=hps.sample_rate,
             version=hps.version,
-            save_path=f"assets/weights/{hps.name}_e{epoch}_s{global_step}.pth",
+            save_path=f"{hps.model_dir}/weights/{hps.name}_e{epoch}_s{global_step}.pth",
         )
         logger.info(save_model)
 
@@ -584,7 +584,7 @@ def train_and_evaluate(
             step=global_step,
             sr=hps.sample_rate,
             version=hps.version,
-            save_path=f"assets/weights/{hps.name}.pth",
+            save_path=f"{hps.model_dir}/weights/{hps.name}.pth",
         )
         logger.info(save_model)
         logger.info("Тренировка успешно завершена. Завершение программы...")
