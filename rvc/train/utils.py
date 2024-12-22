@@ -9,7 +9,9 @@ import sys
 import numpy as np
 import torch
 from scipy.io.wavfile import read
+import matplotlib.pyplot as plt
 import warnings
+
 
 # Remove this to see warnings about transformers models
 warnings.filterwarnings("ignore")
@@ -151,11 +153,14 @@ def save_checkpoint_d(combd, sbd, optimizer, learning_rate, iteration, checkpoin
 
 def summarize(
     writer,
-    epoch,
+    tracking,
     scalars={},
+    images={},
 ):
     for k, v in scalars.items():
-        writer.add_scalar(k, v, epoch)
+        writer.add_scalar(k, v, tracking)
+    for k, v in images.items():
+        writer.add_image(k, v, tracking, dataformats="HWC")
 
 
 def latest_checkpoint_path(dir_path, regex="G_*.pth"):
@@ -169,14 +174,8 @@ def latest_checkpoint_path(dir_path, regex="G_*.pth"):
 def plot_spectrogram_to_numpy(spectrogram):
     global MATPLOTLIB_FLAG
     if not MATPLOTLIB_FLAG:
-        import matplotlib
-
-        matplotlib.use("Agg")
+        plt.switch_backend("Agg")
         MATPLOTLIB_FLAG = True
-        mpl_logger = logging.getLogger("matplotlib")
-        mpl_logger.setLevel(logging.WARNING)
-    import matplotlib.pylab as plt
-    import numpy as np
 
     fig, ax = plt.subplots(figsize=(10, 2))
     im = ax.imshow(spectrogram, aspect="auto", origin="lower", interpolation="none")
@@ -186,9 +185,9 @@ def plot_spectrogram_to_numpy(spectrogram):
     plt.tight_layout()
 
     fig.canvas.draw()
-    data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep="")
+    data = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
     data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    plt.close()
+    plt.close(fig)
     return data
 
 
@@ -201,8 +200,6 @@ def plot_alignment_to_numpy(alignment, info=None):
         MATPLOTLIB_FLAG = True
         mpl_logger = logging.getLogger("matplotlib")
         mpl_logger.setLevel(logging.WARNING)
-    import matplotlib.pylab as plt
-    import numpy as np
 
     fig, ax = plt.subplots(figsize=(6, 4))
     im = ax.imshow(
@@ -279,6 +276,13 @@ def get_hparams(init=True):
         required=True,
         help="if caching the dataset in GPU memory, 1 or 0",
     )
+    parser.add_argument(
+        "-t",
+        "--tracking_method",
+        type=str,
+        default="epoch",
+        help="if caching the dataset in GPU memory, 1 or 0",
+    )
 
     args = parser.parse_args()
     name = args.experiment_dir
@@ -300,6 +304,7 @@ def get_hparams(init=True):
     hparams.train.batch_size = args.batch_size
     hparams.sample_rate = args.sample_rate
     hparams.if_f0 = args.if_f0
+    hparams.tracking_method = args.tracking_method
     hparams.if_cache_data_in_gpu = args.if_cache_data_in_gpu
     hparams.data.training_files = f"{experiment_dir}/data/filelist.txt"
     return hparams

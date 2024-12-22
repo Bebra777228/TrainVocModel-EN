@@ -1,6 +1,6 @@
 {
   "train": {
-    "log_interval_epoch": 1,
+    "log_interval": 1,
     "seed": 1234,
     "learning_rate": 1e-4,
     "betas": [0.8, 0.99],

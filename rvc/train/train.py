@@ -30,6 +30,7 @@ from rvc.train.utils import (
     get_hparams,
     get_logger,
     latest_checkpoint_path,
+    plot_spectrogram_to_numpy,
     load_checkpoint,
     save_checkpoint,
     summarize,
@@ -504,22 +505,50 @@ def train_and_evaluate(
 
         global_step += 1
 
-    if rank == 0 and epoch % hps.train.log_interval_epoch == 0:
-        if loss_mel > 75:
-            loss_mel = 75
-        if loss_kl > 9:
-            loss_kl = 9
+    if hps.tracking_method == "epoch"
+        if rank == 0 and epoch % hps.train.log_interval == 0:
+            if loss_mel > 75:
+                loss_mel = 75
+            if loss_kl > 9:
+                loss_kl = 9
 
-        scalar_dict = {
-            "grad/norm_d": grad_norm_d,
-            "grad/norm_g": grad_norm_g,
-            "loss/g/total": loss_gen_all,
-            "loss/d/total": loss_disc,
-            "loss/g/fm": loss_fm,
-            "loss/g/mel": loss_mel,
-            "loss/g/kl": loss_kl,
-        }
-        summarize(writer=writer, epoch=epoch, scalars=scalar_dict)
+            scalar_dict = {
+                "grad/norm_d": grad_norm_d,
+                "grad/norm_g": grad_norm_g,
+                "loss/g/total": loss_gen_all,
+                "loss/d/total": loss_disc,
+                "loss/g/fm": loss_fm,
+                "loss/g/mel": loss_mel,
+                "loss/g/kl": loss_kl,
+            }
+            image_dict = {
+                "slice/mel_org": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
+                "slice/mel_gen": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),
+                "all/mel": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),
+            }
+            summarize(writer=writer, tracking=epoch, scalars=scalar_dict, image=image_dict)
+    else:
+        if rank == 0 and global_step % hps.train.log_interval == 0:
+            if loss_mel > 75:
+                loss_mel = 75
+            if loss_kl > 9:
+                loss_kl = 9
+
+            scalar_dict = {
+                "grad/norm_d": grad_norm_d,
+                "grad/norm_g": grad_norm_g,
+                "loss/g/total": loss_gen_all,
+                "loss/d/total": loss_disc,
+                "loss/g/fm": loss_fm,
+                "loss/g/mel": loss_mel,
+                "loss/g/kl": loss_kl,
+            }
+            image_dict = {
+                "slice/mel_org": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
+                "slice/mel_gen": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),
+                "all/mel": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),
+            }
+            summarize(writer=writer, tracking=epoch, scalars=scalar_dict, image=image_dict)
 
     if rank == 0 and epoch % hps.save_every_epoch == 0:
         ckpt = (
