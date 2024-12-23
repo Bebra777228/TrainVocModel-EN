@@ -1,5 +1,5 @@
-import logging
 import argparse
+import logging
 import os
 import sys
 
@@ -15,6 +15,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("faiss").setLevel(logging.WARNING)
 logging.getLogger("faiss.loader").setLevel(logging.WARNING)
+
 
 def arg_parse() -> tuple:
     parser = argparse.ArgumentParser()

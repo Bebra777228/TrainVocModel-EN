@@ -1,9 +1,10 @@
 import os
 import sys
+from multiprocessing import cpu_count
+
 import faiss
 import numpy as np
 from sklearn.cluster import MiniBatchKMeans
-from multiprocessing import cpu_count
 
 exp_dir = str(sys.argv[1])
 version = str(sys.argv[2])
@@ -13,10 +14,10 @@ try:
     feature_dir = os.path.join(exp_dir, "data", f"{version}_extracted")
     model_name = os.path.basename(exp_dir)
 
-    index_filename_added = f"added_{model_name}_{version}.index"
-    index_filepath_added = os.path.join(exp_dir, index_filename_added)
+    index_filename = f"added_{model_name}_{version}.index"
+    index_filepath = os.path.join(exp_dir, index_filename)
 
-    if os.path.exists(index_filepath_added):
+    if os.path.exists(index_filepath):
         pass
     else:
         npys = []
@@ -57,7 +58,7 @@ try:
         for i in range(0, big_npy.shape[0], batch_size_add):
             index_added.add(big_npy[i : i + batch_size_add])
 
-        faiss.write_index(index_added, index_filepath_added)
+        faiss.write_index(index_added, index_filepath)
         print(f"Индекс успешно сохранен - '{index_filepath}'")
 
 except Exception as error:

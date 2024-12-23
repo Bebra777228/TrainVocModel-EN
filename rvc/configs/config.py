@@ -34,11 +34,7 @@ class Config:
         self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
         self.is_half = self.device != "cpu"
         self.n_cpu = 0
-        self.gpu_name = (
-            torch.cuda.get_device_name(int(self.device.split(":")[-1]))
-            if self.device.startswith("cuda")
-            else None
-        )
+        self.gpu_name = torch.cuda.get_device_name(int(self.device.split(":")[-1])) if self.device.startswith("cuda") else None
         self.json_config = self.load_config_json()
         self.gpu_mem = None
         self.instead = ""
@@ -103,13 +99,7 @@ class Config:
                 self.use_fp32_config()
             else:
                 logger.info(f"Found GPU {self.gpu_name}")
-            self.gpu_mem = int(
-                torch.cuda.get_device_properties(i_device).total_memory
-                / 1024
-                / 1024
-                / 1024
-                + 0.4
-            )
+            self.gpu_mem = int(torch.cuda.get_device_properties(i_device).total_memory / 1024 / 1024 / 1024 + 0.4)
             if self.gpu_mem <= 4:
                 self.preprocess_per = 3.0
         elif self.has_mps():

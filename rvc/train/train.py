@@ -30,8 +30,8 @@ from rvc.train.utils import (
     get_hparams,
     get_logger,
     latest_checkpoint_path,
-    plot_spectrogram_to_numpy,
     load_checkpoint,
+    plot_spectrogram_to_numpy,
     save_checkpoint,
     summarize,
 )
@@ -40,15 +40,11 @@ hps = get_hparams()
 if hps.version == "v1":
     from rvc.lib.algorithm.models import MultiPeriodDiscriminator as Discriminator
     from rvc.lib.algorithm.models import SynthesizerTrnMs256NSFsid as RVC_Model_f0
-    from rvc.lib.algorithm.models import (
-        SynthesizerTrnMs256NSFsid_nono as RVC_Model_nof0,
-    )
+    from rvc.lib.algorithm.models import SynthesizerTrnMs256NSFsid_nono as RVC_Model_nof0
 else:
     from rvc.lib.algorithm.models import MultiPeriodDiscriminatorV2 as Discriminator
     from rvc.lib.algorithm.models import SynthesizerTrnMs768NSFsid as RVC_Model_f0
-    from rvc.lib.algorithm.models import (
-        SynthesizerTrnMs768NSFsid_nono as RVC_Model_nof0,
-    )
+    from rvc.lib.algorithm.models import SynthesizerTrnMs768NSFsid_nono as RVC_Model_nof0
 
 logger = logging.getLogger(__name__)
 logging.getLogger("tensorflow").setLevel(logging.WARNING)
@@ -110,9 +106,7 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
 
     if rank == 0:
         writer = SummaryWriter(log_dir=os.path.join(hps.model_dir, "tensorboard_logs"))
-        writer_eval = SummaryWriter(
-            log_dir=os.path.join(hps.model_dir, "tensorboard_logs", "eval")
-        )
+        writer_eval = SummaryWriter(log_dir=os.path.join(hps.model_dir, "tensorboard_logs", "eval"))
     else:
         writer, writer_eval = None, None
 
@@ -215,16 +209,12 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
 
     try:
         _, _, _, epoch_str = load_checkpoint(
-            latest_checkpoint_path(
-                os.path.join(hps.model_dir, "checkpoints"), "D_*.pth"
-            ),
+            latest_checkpoint_path(os.path.join(hps.model_dir, "checkpoints"), "D_*.pth"),
             net_d,
             optim_d,
         )
         _, _, _, epoch_str = load_checkpoint(
-            latest_checkpoint_path(
-                os.path.join(hps.model_dir, "checkpoints"), "G_*.pth"
-            ),
+            latest_checkpoint_path(os.path.join(hps.model_dir, "checkpoints"), "G_*.pth"),
             net_g,
             optim_g,
         )
@@ -233,51 +223,25 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
         logger.error(f"Ошибка загрузки чекпоинта: {e}")
         epoch_str = 1
         global_step = 0
+
         if hps.pretrainG != "":
             if rank == 0:
                 logger.info(f"Загрузка предварительно обученной модели {hps.pretrainG}")
             if hasattr(net_g, "module"):
-                logger.info(
-                    net_g.module.load_state_dict(
-                        torch.load(
-                            hps.pretrainG, map_location="cpu", weights_only=True
-                        )["model"]
-                    )
-                )
+                logger.info(net_g.module.load_state_dict(torch.load(hps.pretrainG, map_location="cpu", weights_only=True)["model"]))
             else:
-                logger.info(
-                    net_g.load_state_dict(
-                        torch.load(
-                            hps.pretrainG, map_location="cpu", weights_only=True
-                        )["model"]
-                    )
-                )
+                logger.info(net_g.load_state_dict(torch.load(hps.pretrainG, map_location="cpu", weights_only=True)["model"]))
+
         if hps.pretrainD != "":
             if rank == 0:
                 logger.info(f"Загрузка предварительно обученной модели {hps.pretrainD}")
             if hasattr(net_d, "module"):
-                logger.info(
-                    net_d.module.load_state_dict(
-                        torch.load(
-                            hps.pretrainD, map_location="cpu", weights_only=True
-                        )["model"]
-                    )
-                )
+                logger.info(net_d.module.load_state_dict(torch.load(hps.pretrainD, map_location="cpu", weights_only=True)["model"]))
             else:
-                logger.info(
-                    net_d.load_state_dict(
-                        torch.load(
-                            hps.pretrainD, map_location="cpu", weights_only=True
-                        )["model"]
-                    )
-                )
+                logger.info(net_d.load_state_dict(torch.load(hps.pretrainD, map_location="cpu", weights_only=True)["model"]))
 
-    scheduler_g = torch.optim.lr_scheduler.ExponentialLR(
-        optim_g, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2
-    )
-    scheduler_d = torch.optim.lr_scheduler.ExponentialLR(
-        optim_d, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2
-    )
+    scheduler_g = torch.optim.lr_scheduler.ExponentialLR(optim_g, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2)
+    scheduler_d = torch.optim.lr_scheduler.ExponentialLR(optim_d, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2)
 
     scaler = GradScaler(enabled=hps.train.fp16_run)
 
@@ -315,9 +279,30 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
         scheduler_d.step()
 
 
-def train_and_evaluate(
-    rank, epoch, hps, nets, optims, schedulers, scaler, loaders, logger, writers, cache
-):
+def log_metrics(writer, tracking, y_mel, y_hat_mel, mel, grad_norm_d, grad_norm_g, loss_gen_all, loss_disc, loss_fm, loss_mel, loss_kl):
+    if loss_mel > 75:
+        loss_mel = 75
+    if loss_kl > 9:
+        loss_kl = 9
+
+    scalar_dict = {
+        "grad/norm_d": grad_norm_d,
+        "grad/norm_g": grad_norm_g,
+        "loss/g/total": loss_gen_all,
+        "loss/d/total": loss_disc,
+        "loss/g/fm": loss_fm,
+        "loss/g/mel": loss_mel,
+        "loss/g/kl": loss_kl,
+    }
+    image_dict = {
+        "slice/mel_org": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
+        "slice/mel_gen": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),
+        "all/mel": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),
+    }
+    summarize(writer=writer, tracking=tracking, scalars=scalar_dict, image=image_dict)
+
+
+def train_and_evaluate(rank, epoch, hps, nets, optims, schedulers, scaler, loaders, logger, writers, cache):
     global global_step
 
     net_g, net_d = nets
@@ -457,9 +442,7 @@ def train_and_evaluate(
                 hps.data.mel_fmin,
                 hps.data.mel_fmax,
             )
-            y_mel = slice_segments(
-                mel, ids_slice, hps.train.segment_size // hps.data.hop_length
-            )
+            y_mel = slice_segments(mel, ids_slice, hps.train.segment_size // hps.data.hop_length)
             with autocast(device_type="cuda", enabled=False):
                 y_hat_mel = mel_spectrogram_torch(
                     y_hat.float().squeeze(1),
@@ -473,15 +456,11 @@ def train_and_evaluate(
                 )
             if hps.train.fp16_run == True:
                 y_hat_mel = y_hat_mel.half()
-            wave = slice_segments(
-                wave, ids_slice * hps.data.hop_length, hps.train.segment_size
-            )
+            wave = slice_segments(wave, ids_slice * hps.data.hop_length, hps.train.segment_size)
 
             y_d_hat_r, y_d_hat_g, _, _ = net_d(wave, y_hat.detach())
             with autocast(device_type="cuda", enabled=False):
-                loss_disc, losses_disc_r, losses_disc_g = discriminator_loss(
-                    y_d_hat_r, y_d_hat_g
-                )
+                loss_disc, losses_disc_r, losses_disc_g = discriminator_loss(y_d_hat_r, y_d_hat_g)
         optim_d.zero_grad()
         scaler.scale(loss_disc).backward()
         scaler.unscale_(optim_d)
@@ -505,70 +484,28 @@ def train_and_evaluate(
 
         global_step += 1
 
-    if hps.tracking_method == "epoch"
+    if hps.tracking_method == "epoch":
         if rank == 0 and epoch % hps.train.log_interval == 0:
-            if loss_mel > 75:
-                loss_mel = 75
-            if loss_kl > 9:
-                loss_kl = 9
-
-            scalar_dict = {
-                "grad/norm_d": grad_norm_d,
-                "grad/norm_g": grad_norm_g,
-                "loss/g/total": loss_gen_all,
-                "loss/d/total": loss_disc,
-                "loss/g/fm": loss_fm,
-                "loss/g/mel": loss_mel,
-                "loss/g/kl": loss_kl,
-            }
-            image_dict = {
-                "slice/mel_org": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
-                "slice/mel_gen": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),
-                "all/mel": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),
-            }
-            summarize(writer=writer, tracking=epoch, scalars=scalar_dict, image=image_dict)
-    else:
+            log_metrics(writer, epoch, y_mel, y_hat_mel, mel, grad_norm_d, grad_norm_g, loss_gen_all, loss_disc, loss_fm, loss_mel, loss_kl)
+    elif hps.tracking_method == "step":
         if rank == 0 and global_step % hps.train.log_interval == 0:
-            if loss_mel > 75:
-                loss_mel = 75
-            if loss_kl > 9:
-                loss_kl = 9
-
-            scalar_dict = {
-                "grad/norm_d": grad_norm_d,
-                "grad/norm_g": grad_norm_g,
-                "loss/g/total": loss_gen_all,
-                "loss/d/total": loss_disc,
-                "loss/g/fm": loss_fm,
-                "loss/g/mel": loss_mel,
-                "loss/g/kl": loss_kl,
-            }
-            image_dict = {
-                "slice/mel_org": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
-                "slice/mel_gen": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),
-                "all/mel": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),
-            }
-            summarize(writer=writer, tracking=epoch, scalars=scalar_dict, image=image_dict)
+            log_metrics(
+                writer, global_step, y_mel, y_hat_mel, mel, grad_norm_d, grad_norm_g, loss_gen_all, loss_disc, loss_fm, loss_mel, loss_kl
+            )
+    else:
+        if rank == 0:
+            logger.info(f"Метод '{hps.tracking_method}' не существует, выберите между 'epoch' и 'step'")
 
     if rank == 0 and epoch % hps.save_every_epoch == 0:
-        ckpt = (
-            net_g.module.state_dict()
-            if hasattr(net_g, "module")
-            else net_g.state_dict()
-        )
+        ckpt = net_g.module.state_dict() if hasattr(net_g, "module") else net_g.state_dict()
 
-        logger.info(
-            f"Сохранение чекпоинта G_checkpoint.pth... (Эпоха: {epoch} | Шаг: {global_step})"
-        )
+        logger.info(f"Сохранение чекпоинтов (Эпоха: {epoch} | Шаг: {global_step})")
         save_checkpoint(
             net_g,
             optim_g,
             hps.train.learning_rate,
             epoch,
             os.path.join(hps.model_dir, "checkpoints", "G_checkpoint.pth"),
-        )
-        logger.info(
-            f"Сохранение чекпоинта D_checkpoint.pth... (Эпоха: {epoch} | Шаг: {global_step})"
         )
         save_checkpoint(
             net_d,
@@ -593,16 +530,10 @@ def train_and_evaluate(
         logger.info(save_model)
 
     if rank == 0:
-        logger.info(
-            f"====> Эпоха: {epoch}/{hps.total_epoch} | Шаг: {global_step} | {epoch_recorder.record()}"
-        )
+        logger.info(f"====> Эпоха: {epoch}/{hps.total_epoch} | Шаг: {global_step} | {epoch_recorder.record()}")
 
     if rank == 0 and epoch >= hps.total_epoch:
-        ckpt = (
-            net_g.module.state_dict()
-            if hasattr(net_g, "module")
-            else net_g.state_dict()
-        )
+        ckpt = net_g.module.state_dict() if hasattr(net_g, "module") else net_g.state_dict()
         logger.info(f"Сохранение финальной модели {hps.name}.pth")
         save_model = extract_model(
             hps=hps,

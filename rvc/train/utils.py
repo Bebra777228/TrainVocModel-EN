@@ -5,13 +5,12 @@ import logging
 import os
 import subprocess
 import sys
+import warnings
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from scipy.io.wavfile import read
-import matplotlib.pyplot as plt
-import warnings
-
 
 # Remove this to see warnings about transformers models
 warnings.filterwarnings("ignore")
@@ -202,9 +201,7 @@ def plot_alignment_to_numpy(alignment, info=None):
         mpl_logger.setLevel(logging.WARNING)
 
     fig, ax = plt.subplots(figsize=(6, 4))
-    im = ax.imshow(
-        alignment.transpose(), aspect="auto", origin="lower", interpolation="none"
-    )
+    im = ax.imshow(alignment.transpose(), aspect="auto", origin="lower", interpolation="none")
     fig.colorbar(im, ax=ax)
     xlabel = "Decoder timestep"
     if info is not None:
@@ -240,28 +237,14 @@ def get_hparams(init=True):
         required=True,
         help="checkpoint save frequency (epoch)",
     )
-    parser.add_argument(
-        "-te", "--total_epoch", type=int, required=True, help="total_epoch"
-    )
-    parser.add_argument(
-        "-pg", "--pretrainG", type=str, default="", help="Pretrained Generator path"
-    )
-    parser.add_argument(
-        "-pd", "--pretrainD", type=str, default="", help="Pretrained Discriminator path"
-    )
+    parser.add_argument("-te", "--total_epoch", type=int, required=True, help="total_epoch")
+    parser.add_argument("-pg", "--pretrainG", type=str, default="", help="Pretrained Generator path")
+    parser.add_argument("-pd", "--pretrainD", type=str, default="", help="Pretrained Discriminator path")
     parser.add_argument("-g", "--gpus", type=str, default="0", help="split by -")
-    parser.add_argument(
-        "-bs", "--batch_size", type=int, required=True, help="batch size"
-    )
-    parser.add_argument(
-        "-e", "--experiment_dir", type=str, required=True, help="experiment dir"
-    )
-    parser.add_argument(
-        "-sr", "--sample_rate", type=str, required=True, help="sample rate, 32k/40k/48k"
-    )
-    parser.add_argument(
-        "-v", "--version", type=str, required=True, help="model version"
-    )
+    parser.add_argument("-bs", "--batch_size", type=int, required=True, help="batch size")
+    parser.add_argument("-e", "--experiment_dir", type=str, required=True, help="experiment dir")
+    parser.add_argument("-sr", "--sample_rate", type=str, required=True, help="sample rate, 32k/40k/48k")
+    parser.add_argument("-v", "--version", type=str, required=True, help="model version")
     parser.add_argument(
         "-f0",
         "--if_f0",
@@ -333,9 +316,7 @@ def get_hparams_from_file(config_path):
 def check_git_hash(model_dir):
     source_dir = os.path.dirname(os.path.realpath(__file__))
     if not os.path.exists(os.path.join(source_dir, ".git")):
-        logger.warning(
-            f"{source_dir} is not a git repository, therefore hash value comparison will be ignored."
-        )
+        logger.warning(f"{source_dir} is not a git repository, therefore hash value comparison will be ignored.")
         return
 
     cur_hash = subprocess.getoutput("git rev-parse HEAD")
@@ -344,9 +325,7 @@ def check_git_hash(model_dir):
     if os.path.exists(path):
         saved_hash = open(path).read()
         if saved_hash != cur_hash:
-            logger.warning(
-                f"git hash values are different. {saved_hash[:8]}(saved) != {cur_hash[:8]}(current)"
-            )
+            logger.warning(f"git hash values are different. {saved_hash[:8]}(saved) != {cur_hash[:8]}(current)")
     else:
         open(path, "w").write(cur_hash)
 
