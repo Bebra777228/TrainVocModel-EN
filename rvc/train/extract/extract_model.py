@@ -13,8 +13,6 @@ def extract_model(
     name,
     step,
     epoch,
-    if_f0,
-    version,
     save_path,
 ):
     try:
@@ -48,8 +46,8 @@ def extract_model(
         opt["epoch"] = f"e{epoch}"
         opt["step"] = f"s{step}"
         opt["sr"] = sr
-        opt["f0"] = if_f0
-        opt["version"] = version
+        opt["f0"] = True
+        opt["version"] = "v2"
         opt["creation_date"] = datetime.datetime.now().isoformat()
 
         hash_input = f"{str(ckpt)} {epoch} {step} {datetime.datetime.now().isoformat()}"
