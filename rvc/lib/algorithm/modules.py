@@ -210,15 +210,15 @@ class WN(torch.nn.Module):
     def __prepare_scriptable__(self):
         if self.gin_channels != 0:
             for hook in self.cond_layer._forward_pre_hooks.values():
-                if hook.__module__ == "torch.nn.utils.weight_norm" and hook.__class__.__name__ == "WeightNorm":
+                if hook.__module__ == "torch.nn.utils.parametrizations.weight_norm" and hook.__class__.__name__ == "WeightNorm":
                     torch.nn.utils.remove_weight_norm(self.cond_layer)
         for l in self.in_layers:
             for hook in l._forward_pre_hooks.values():
-                if hook.__module__ == "torch.nn.utils.weight_norm" and hook.__class__.__name__ == "WeightNorm":
+                if hook.__module__ == "torch.nn.utils.parametrizations.weight_norm" and hook.__class__.__name__ == "WeightNorm":
                     torch.nn.utils.remove_weight_norm(l)
         for l in self.res_skip_layers:
             for hook in l._forward_pre_hooks.values():
-                if hook.__module__ == "torch.nn.utils.weight_norm" and hook.__class__.__name__ == "WeightNorm":
+                if hook.__module__ == "torch.nn.utils.parametrizations.weight_norm" and hook.__class__.__name__ == "WeightNorm":
                     torch.nn.utils.remove_weight_norm(l)
         return self
 
@@ -323,11 +323,11 @@ class ResBlock1(torch.nn.Module):
     def __prepare_scriptable__(self):
         for l in self.convs1:
             for hook in l._forward_pre_hooks.values():
-                if hook.__module__ == "torch.nn.utils.weight_norm" and hook.__class__.__name__ == "WeightNorm":
+                if hook.__module__ == "torch.nn.utils.parametrizations.weight_norm" and hook.__class__.__name__ == "WeightNorm":
                     torch.nn.utils.remove_weight_norm(l)
         for l in self.convs2:
             for hook in l._forward_pre_hooks.values():
-                if hook.__module__ == "torch.nn.utils.weight_norm" and hook.__class__.__name__ == "WeightNorm":
+                if hook.__module__ == "torch.nn.utils.parametrizations.weight_norm" and hook.__class__.__name__ == "WeightNorm":
                     torch.nn.utils.remove_weight_norm(l)
         return self
 
@@ -380,7 +380,7 @@ class ResBlock2(torch.nn.Module):
     def __prepare_scriptable__(self):
         for l in self.convs:
             for hook in l._forward_pre_hooks.values():
-                if hook.__module__ == "torch.nn.utils.weight_norm" and hook.__class__.__name__ == "WeightNorm":
+                if hook.__module__ == "torch.nn.utils.parametrizations.weight_norm" and hook.__class__.__name__ == "WeightNorm":
                     torch.nn.utils.remove_weight_norm(l)
         return self
 
@@ -503,7 +503,7 @@ class ResidualCouplingLayer(nn.Module):
 
     def __prepare_scriptable__(self):
         for hook in self.enc._forward_pre_hooks.values():
-            if hook.__module__ == "torch.nn.utils.weight_norm" and hook.__class__.__name__ == "WeightNorm":
+            if hook.__module__ == "torch.nn.utils.parametrizations.weight_norm" and hook.__class__.__name__ == "WeightNorm":
                 torch.nn.utils.remove_weight_norm(self.enc)
         return self
 
