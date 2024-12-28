@@ -1,4 +1,5 @@
 import datetime
+import glob
 import logging
 import os
 import sys
@@ -15,14 +16,9 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-sys.path.append(os.path.join(os.getcwd()))
+sys.path.append(os.getcwd())
 
 from rvc.lib.algorithm.commons import clip_grad_value_, slice_segments
-from rvc.lib.algorithm.models import MultiPeriodDiscriminatorV2 as Discriminator
-from rvc.lib.algorithm.models import SynthesizerTrnMs768NSFsid as Synthesizer
-from rvc.train.data_utils import DistributedBucketSampler as Sampler
-from rvc.train.data_utils import TextAudioCollateMultiNSFsid as Collate
-from rvc.train.data_utils import TextAudioLoaderMultiNSFsid as Loader
 from rvc.train.extract.extract_model import extract_model
 from rvc.train.losses import discriminator_loss, feature_loss, generator_loss, kl_loss
 from rvc.train.mel_processing import mel_spectrogram_torch, spec_to_mel_torch
@@ -31,9 +27,9 @@ from rvc.train.utils import (
     get_logger,
     latest_checkpoint_path,
     load_checkpoint,
-    plot_spectrogram_to_numpy,
+    load_wav_to_torch,
+    log_metrics,
     save_checkpoint,
-    summarize,
 )
 
 logger = logging.getLogger(__name__)
@@ -77,6 +73,17 @@ def main():
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = str(randint(20000, 55555))
 
+    wavs = glob.glob(os.path.join(os.path.join(hps.model_dir, "sliced_audios"), "*.wav"))
+    if wavs:
+        _, sr = load_wav_to_torch(wavs[0])
+        if sr != hps.sample_rate:
+            print(
+                f"Ошибка: Частота дискретизации предварительно обученной модели ({hps.sample_rate} Hz) не соответствует частоте дискретизации аудиоданных ({sr} Hz)."
+            )
+            os._exit(1)
+    else:
+        print("Не найден ни один файл wav.")
+
     children = []
     logger = get_logger(hps.model_dir)
 
@@ -106,10 +113,17 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
         logger.info(f"Используемый бэкенд распределенных вычислений: {backend}")
 
     torch.manual_seed(hps.train.seed)
+
     if torch.cuda.is_available():
         torch.cuda.set_device(rank)
 
+    # Создайте наборы данных и загрузчики данных
+    from rvc.train.data_utils import DistributedBucketSampler as Sampler
+    from rvc.train.data_utils import TextAudioCollateMultiNSFsid as Collate
+    from rvc.train.data_utils import TextAudioLoaderMultiNSFsid as Loader
+
     train_dataset = Loader(hps.data.training_files, hps.data)
+    collate_fn = Collate()
     train_sampler = Sampler(
         train_dataset,
         hps.train.batch_size * n_gpus,
@@ -118,7 +132,7 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
         rank=rank,
         shuffle=True,
     )
-    collate_fn = Collate()
+
     train_loader = DataLoader(
         train_dataset,
         num_workers=2,  # 4
@@ -129,6 +143,11 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
         persistent_workers=True,
         prefetch_factor=8,
     )
+
+    # Инициализация моделей и оптимизаторов
+    from rvc.lib.algorithm.models import MultiPeriodDiscriminatorV2 as Discriminator
+    from rvc.lib.algorithm.models import SynthesizerTrnMs768NSFsid as Synthesizer
+
     net_g = Synthesizer(
         hps.data.filter_length // 2 + 1,
         hps.train.segment_size // hps.data.hop_length,
@@ -136,20 +155,17 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
         is_half=hps.train.fp16_run,
         sr=hps.sample_rate,
     )
+    net_d = Discriminator(hps.model.use_spectral_norm)
 
     if torch.cuda.is_available():
         net_g = net_g.cuda(rank)
-
-    net_d = Discriminator(hps.model.use_spectral_norm)
-    if torch.cuda.is_available():
         net_d = net_d.cuda(rank)
 
     optim_g = torch.optim.AdamW(net_g.parameters(), hps.train.learning_rate, betas=hps.train.betas, eps=hps.train.eps)
     optim_d = torch.optim.AdamW(net_d.parameters(), hps.train.learning_rate, betas=hps.train.betas, eps=hps.train.eps)
 
-    if hasattr(torch, "xpu") and torch.xpu.is_available():
-        pass
-    elif torch.cuda.is_available():
+    # Оберните модели с помощью DDP для обработки на нескольких процессорах
+    if torch.cuda.is_available():
         net_g = DDP(net_g, device_ids=[rank])
         net_d = DDP(net_d, device_ids=[rank])
     else:
@@ -157,11 +173,15 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
         net_d = DDP(net_d)
 
     try:
+        logger.info("Запуск обучения...")
+
         _, _, _, epoch_str = load_checkpoint(latest_checkpoint_path(os.path.join(hps.model_dir, "checkpoints"), "D_*.pth"), net_d, optim_d)
         _, _, _, epoch_str = load_checkpoint(latest_checkpoint_path(os.path.join(hps.model_dir, "checkpoints"), "G_*.pth"), net_g, optim_g)
+
+        epoch_str += 1
         step = (epoch_str - 1) * len(train_loader)
+
     except Exception as e:
-        logger.error(f"Ошибка загрузки чекпоинта: {e}")
         epoch_str = 1
         step = 0
 
@@ -181,6 +201,7 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
             else:
                 logger.info(net_d.load_state_dict(torch.load(hps.pretrainD, map_location="cpu", weights_only=True)["model"]))
 
+    # Инициализация планировщиков и масштабирования
     scheduler_g = torch.optim.lr_scheduler.ExponentialLR(optim_g, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2)
     scheduler_d = torch.optim.lr_scheduler.ExponentialLR(optim_d, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2)
 
@@ -204,29 +225,6 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
 
         scheduler_g.step()
         scheduler_d.step()
-
-
-def log_metrics(writer, tracking, y_mel, y_hat_mel, mel, grad_norm_d, grad_norm_g, loss_gen_all, loss_disc, loss_fm, loss_mel, loss_kl):
-    if loss_mel > 75:
-        loss_mel = 75
-    if loss_kl > 9:
-        loss_kl = 9
-
-    scalar_dict = {
-        "grad/norm_d": grad_norm_d,
-        "grad/norm_g": grad_norm_g,
-        "loss/g/total": loss_gen_all,
-        "loss/d/total": loss_disc,
-        "loss/g/fm": loss_fm,
-        "loss/g/mel": loss_mel,
-        "loss/g/kl": loss_kl,
-    }
-    image_dict = {
-        "slice/mel_org": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
-        "slice/mel_gen": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),
-        "all/mel": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),
-    }
-    summarize(writer=writer, tracking=tracking, scalars=scalar_dict, image=image_dict)
 
 
 def train_and_evaluate(rank, epoch, hps, nets, optims, schedulers, scaler, loaders, writers, cache, logger):
