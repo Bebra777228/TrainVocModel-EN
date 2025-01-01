@@ -58,18 +58,11 @@ from infer.lib.train.data_utils import (
     TextAudioLoaderMultiNSFsid,
 )
 
-if hps.version == "v1":
-    from infer.lib.infer_pack.models import MultiPeriodDiscriminator
-    from infer.lib.infer_pack.models import SynthesizerTrnMs256NSFsid as RVC_Model_f0
-    from infer.lib.infer_pack.models import (
-        SynthesizerTrnMs256NSFsid_nono as RVC_Model_nof0,
-    )
-else:
-    from infer.lib.infer_pack.models import (
-        SynthesizerTrnMs768NSFsid as RVC_Model_f0,
-        SynthesizerTrnMs768NSFsid_nono as RVC_Model_nof0,
-        MultiPeriodDiscriminatorV2 as MultiPeriodDiscriminator,
-    )
+from infer.lib.infer_pack.models import (
+    SynthesizerTrnMs768NSFsid as RVC_Model_f0,
+    SynthesizerTrnMs768NSFsid_nono as RVC_Model_nof0,
+    MultiPeriodDiscriminatorV2 as MultiPeriodDiscriminator,
+)
 
 from infer.lib.train.losses import (
     discriminator_loss,
@@ -196,18 +189,25 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
     net_d = MultiPeriodDiscriminator(hps.model.use_spectral_norm)
     if torch.cuda.is_available():
         net_d = net_d.cuda(rank)
-    optim_g = torch.optim.AdamW(
+    
+    if hps.optimizer == "AdamW":
+        optimizer = torch.optim.AdamW
+    elif hps.optimizer == "RAdam":
+        optimizer = torch.optim.RAdam
+
+    optim_g = optimizer(
         net_g.parameters(),
         hps.train.learning_rate,
         betas=hps.train.betas,
         eps=hps.train.eps,
     )
-    optim_d = torch.optim.AdamW(
+    optim_d = optimizer(
         net_d.parameters(),
         hps.train.learning_rate,
         betas=hps.train.betas,
         eps=hps.train.eps,
     )
+
     if hasattr(torch, "xpu") and torch.xpu.is_available():
         pass
     elif torch.cuda.is_available():
@@ -558,7 +558,6 @@ def train_and_evaluate(
                         hps.if_f0,
                         hps.name + "_e%s_s%s" % (epoch, global_step),
                         epoch,
-                        hps.version,
                         hps,
                     ),
                 )
@@ -577,7 +576,7 @@ def train_and_evaluate(
             "Финальная модель успешно сохранена: %s"
             % (
                 savee(
-                    ckpt, hps.sample_rate, hps.if_f0, hps.name, epoch, hps.version, hps
+                    ckpt, hps.sample_rate, hps.if_f0, hps.name, epoch, hps
                 )
             )
         )
