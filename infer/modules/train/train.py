@@ -208,6 +208,9 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
         eps=hps.train.eps,
     )
 
+    if rank == 0:
+        logger.info(f"Используемый оптимизатор: {hps.optimizer}")
+
     if hasattr(torch, "xpu") and torch.xpu.is_available():
         pass
     elif torch.cuda.is_available():
