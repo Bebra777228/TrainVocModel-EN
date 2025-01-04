@@ -551,7 +551,7 @@ def train_and_evaluate(
                 epoch,
                 os.path.join(hps.model_dir, "D_{}.pth".format(2333333)),
             )
-        if rank == 0 and hps.save_every_weights == "1":
+        if rank == 0 and hps.save_every_weights == 1:
             if hasattr(net_g, "module"):
                 ckpt = net_g.module.state_dict()
             else:
