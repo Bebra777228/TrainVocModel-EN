@@ -196,18 +196,28 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
     net_d = MultiPeriodDiscriminator(hps.model.use_spectral_norm)
     if torch.cuda.is_available():
         net_d = net_d.cuda(rank)
-    optim_g = torch.optim.AdamW(
+    
+    if hps.optimizer == "AdamW":
+        optimizer = torch.optim.AdamW
+    elif hps.optimizer == "RAdam":
+        optimizer = torch.optim.RAdam
+
+    optim_g = optimizer(
         net_g.parameters(),
         hps.train.learning_rate,
         betas=hps.train.betas,
         eps=hps.train.eps,
     )
-    optim_d = torch.optim.AdamW(
+    optim_d = optimizer(
         net_d.parameters(),
         hps.train.learning_rate,
         betas=hps.train.betas,
         eps=hps.train.eps,
     )
+
+    if rank == 0:
+        logger.info(f"Используемый оптимизатор: {hps.optimizer}")
+
     if hasattr(torch, "xpu") and torch.xpu.is_available():
         pass
     elif torch.cuda.is_available():
@@ -541,7 +551,7 @@ def train_and_evaluate(
                 epoch,
                 os.path.join(hps.model_dir, "D_{}.pth".format(2333333)),
             )
-        if rank == 0 and hps.save_every_weights == "1":
+        if rank == 0 and hps.save_every_weights == 1:
             if hasattr(net_g, "module"):
                 ckpt = net_g.module.state_dict()
             else:
