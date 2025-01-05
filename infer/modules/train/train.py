@@ -42,6 +42,7 @@ torch.backends.cudnn.benchmark = False
 from time import sleep
 from time import time as ttime
 
+import torch_optimizer as optimizer
 import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.nn import functional as F
@@ -191,24 +192,31 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
             **hps.model,
             is_half=hps.train.fp16_run,
         )
+
+    net_d = MultiPeriodDiscriminator(hps.model.use_spectral_norm)
+
     if torch.cuda.is_available():
         net_g = net_g.cuda(rank)
-    net_d = MultiPeriodDiscriminator(hps.model.use_spectral_norm)
-    if torch.cuda.is_available():
         net_d = net_d.cuda(rank)
-    
-    if hps.optimizer == "AdamW":
-        optimizer = torch.optim.AdamW
-    elif hps.optimizer == "RAdam":
-        optimizer = torch.optim.RAdam
 
-    optim_g = optimizer(
+    if hps.optimizer == "AdamW":
+        optim_class = torch.optim.AdamW
+    elif hps.optimizer == "RAdam":
+        optim_class = torch.optim.RAdam
+    elif hps.optimizer == "AdamP":
+        optim_class = optimizer.AdamP
+    elif hps.optimizer == "DiffGrad":
+        optim_class = optimizer.DiffGrad
+    elif hps.optimizer == "AdaBelief":
+        optim_class = optimizer.AdaBelief
+
+    optim_g = optim_class(
         net_g.parameters(),
         hps.train.learning_rate,
         betas=hps.train.betas,
         eps=hps.train.eps,
     )
-    optim_d = optimizer(
+    optim_d = optim_class(
         net_d.parameters(),
         hps.train.learning_rate,
         betas=hps.train.betas,
