@@ -1,6 +1,8 @@
 import datetime
 import glob
 import logging
+import absl.logging
+import warnings
 import os
 import sys
 from random import randint, shuffle
@@ -32,19 +34,28 @@ from rvc.train.utils import (
     save_checkpoint,
 )
 
-logger = logging.getLogger(__name__)
+# Настройка уровня логирования для различных библиотек
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 logging.getLogger("tensorflow").setLevel(logging.WARNING)
 logging.getLogger("h5py").setLevel(logging.WARNING)
 logging.getLogger("jax").setLevel(logging.WARNING)
 logging.getLogger("numexpr").setLevel(logging.WARNING)
-logging.getLogger("torch").setLevel(logging.WARNING)
+logging.getLogger("pytorch_lightning").setLevel(logging.WARNING)
+absl.logging.set_verbosity(absl.logging.WARNING)
+
+# Подавление предупреждений
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
+
+# Создание логгера
+logger = logging.getLogger(__name__)
 
 hps = get_hparams()
 os.environ["CUDA_VISIBLE_DEVICES"] = hps.gpus.replace("-", ",")
 n_gpus = len(hps.gpus.split("-"))
 
 torch.backends.cudnn.deterministic = False
-torch.backends.cudnn.benchmark = False
+torch.backends.cudnn.benchmark = True
 
 step = 0
 
@@ -333,7 +344,7 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, schedulers, scaler, loade
             log_metrics(writer, step, y_mel, y_hat_mel, mel, grad_norm_d, grad_norm_g, loss_gen_all, loss_disc, loss_fm, loss_mel, loss_kl)
     else:
         if rank == 0:
-            logger.info(f"Метод '{hps.tracking_method}' не существует, выберите между 'epoch' и 'step'")
+            logger.info(f"Метода '{hps.tracking_method}' не существует, выберите между 'epoch' и 'step'")
 
     if rank == 0 and epoch % hps.save_every_epoch == 0:
         ckpt = net_g.module.state_dict() if hasattr(net_g, "module") else net_g.state_dict()
