@@ -156,42 +156,19 @@ def load_filepaths_and_text(filename, split="|"):
 
 def get_hparams(init=True):
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-se",
-        "--save_every_epoch",
-        type=int,
-        required=True,
-        help="checkpoint save frequency (epoch)",
-    )
-    parser.add_argument("-te", "--total_epoch", type=int, required=True, help="total_epoch")
-    parser.add_argument("-pg", "--pretrainG", type=str, default="", help="Pretrained Generator path")
-    parser.add_argument("-pd", "--pretrainD", type=str, default="", help="Pretrained Discriminator path")
-    parser.add_argument("-g", "--gpus", type=str, default="0", help="split by -")
-    parser.add_argument("-bs", "--batch_size", type=int, required=True, help="batch size")
-    parser.add_argument("-e", "--experiment_dir", type=str, required=True, help="experiment dir")
-    parser.add_argument("-sr", "--sample_rate", type=str, required=True, help="sample rate, 32k/40k/48k")
-    parser.add_argument("-v", "--version", type=str, required=True, help="model version")
-    parser.add_argument(
-        "-f0",
-        "--if_f0",
-        type=int,
-        required=True,
-        help="use f0 as one of the inputs of the model, 1 or 0",
-    )
-    parser.add_argument(
-        "-c",
-        "--if_cache_data_in_gpu",
-        type=int,
-        required=True,
-        help="if caching the dataset in GPU memory, 1 or 0",
-    )
-    parser.add_argument(
-        "-t",
-        "--tracking_method",
-        type=str,
-        default="epoch",
-        help="if caching the dataset in GPU memory, 1 or 0",
-    )
+    parser.add_argument("-se", "--save_every_epoch", type=int, required=True)
+    parser.add_argument("-te", "--total_epoch", type=int, required=True)
+    parser.add_argument("-pg", "--pretrainG", type=str, default="")
+    parser.add_argument("-pd", "--pretrainD", type=str, default="")
+    parser.add_argument("-g", "--gpus", type=str, default="0")
+    parser.add_argument("-bs", "--batch_size", type=int, required=True)
+    parser.add_argument("-e", "--experiment_dir", type=str, required=True)
+    parser.add_argument("-sr", "--sample_rate", type=str, required=True)
+    parser.add_argument("-v", "--version", type=str, required=True)
+    parser.add_argument("-f0", "--if_f0", type=int, required=True)
+    parser.add_argument("-c", "--if_cache_data_in_gpu", type=int, required=True)
+    parser.add_argument("-t", "--tracking_method", type=str, default="epoch")
+    parser.add_argument("-o", "--optimizer", type=str, default="AdamW")
 
     args = parser.parse_args()
     name = args.experiment_dir
@@ -215,6 +192,7 @@ def get_hparams(init=True):
     hparams.if_f0 = args.if_f0
     hparams.tracking_method = args.tracking_method
     hparams.if_cache_data_in_gpu = args.if_cache_data_in_gpu
+    hparams.optimizer = args.optimizer
     hparams.data.training_files = f"{experiment_dir}/data/filelist.txt"
     return hparams
 
