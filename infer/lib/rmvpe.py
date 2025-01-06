@@ -521,6 +521,25 @@ class RMVPE:
         # Комбинирование результатов взвешенного усреднения и BiGRU
         f0_combined = (f0 + f0_bigru) / 2  # Среднее значение
         return f0_combined
+
+    def infer_from_audio_auto_savgol(self, audio, window_size=5):
+        """
+        Версия с фильтром Савицкого-Голея для сглаживания F0.
+        """
+        audio = torch.from_numpy(audio).float().to(self.device).unsqueeze(0)
+        mel = self.mel_extractor(audio, center=True)
+        hidden = self.mel2hidden(mel)
+        hidden = hidden.squeeze(0).cpu().numpy()
+        if self.is_half:
+            hidden = hidden.astype("float32")
+
+        # Автоматическая настройка порога
+        thred = np.median(hidden) * 0.5
+        
+        f0 = self.decode(hidden, thred=thred)
+        f0[(f0 < 40) | (f0 > 1500)] = 0
+        smoothed_f0 = savgol_filter(f0, window_length=window_size, polyorder=2)
+        return smoothed_f0
     
     def infer_from_audio_auto_bigru(self, audio, window_size=5):
         """
