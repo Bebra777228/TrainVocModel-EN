@@ -6,13 +6,14 @@ import os
 import subprocess
 import sys
 import shutil
-
+from datetime import datetime
 import numpy as np
 import torch
 from scipy.io.wavfile import read
 
 MATPLOTLIB_FLAG = False
-
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging
 
