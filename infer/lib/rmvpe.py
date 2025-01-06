@@ -490,7 +490,7 @@ class RMVPE:
         f0[(f0 < 40) | (f0 > 1500)] = 0
         return f0
 
-    def infer_from_audio_unified(self, audio, window_size=5):
+    def infer_from_audio_auto_bigru(self, audio, window_size=5):
         """
         Объединенная версия со всеми улучшениями.
         """
@@ -513,6 +513,28 @@ class RMVPE:
 
         return f0
 
+    def infer_from_audio_auto_avg(self, audio, window_size=5):
+        """
+        Объединенная версия со всеми улучшениями.
+        """
+        audio = torch.from_numpy(audio).float().to(self.device).unsqueeze(0)
+        mel = self.mel_extractor(audio, center=True)
+        hidden = self.mel2hidden(mel)
+        hidden = hidden.squeeze(0).cpu().numpy()
+        if self.is_half:
+            hidden = hidden.astype("float32")
+
+        # Автоматическая настройка порога
+        thred = np.median(hidden) * 0.5
+
+        # Взвешенное усреднение для декодирования F0
+        f0 = self.to_local_average_cents(hidden, thred=thred)
+        f0 = 10 * (2 ** (f0 / 1200))
+        f0[f0 < 10] = 0
+        f0[(f0 < 40) | (f0 > 1500)] = 0
+
+        return f0
+    
     def infer_from_audio_full(self, audio, window_size=5):
         """
         Объединенная версия со всеми улучшениями:
