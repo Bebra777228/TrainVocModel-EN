@@ -13,7 +13,10 @@ from scipy.io.wavfile import read
 
 MATPLOTLIB_FLAG = False
 
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
+
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging
 
 
