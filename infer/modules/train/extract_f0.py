@@ -73,6 +73,8 @@ class FeatureInput(object):
             f0 = self.model_rmvpe.infer_from_audio_weighted(x)
         elif f0_method == "rmvpe_bigru_avg":
             f0 = self.model_rmvpe.infer_from_audio_bigru_avg(x)
+        elif f0_method == "rmvpe_auto_smooth":
+            f0 = self.model_rmvpe.infer_from_audio_auto_savgol(x)
         elif f0_method == "rmvpe_auto_bigru":
             f0 = self.model_rmvpe.infer_from_audio_auto_bigru(x)
         elif f0_method == "rmvpe_auto_avg":
