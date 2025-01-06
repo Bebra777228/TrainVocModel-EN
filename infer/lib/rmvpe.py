@@ -388,7 +388,7 @@ class RMVPE:
         devided[maxx <= thred] = 0
         return devided
 
-    def infer_from_audio_basic(self, audio, thred=0.03):
+    def infer_from_audio(self, audio, thred=0.03):
         """
         Базовая версия извлечения F0 без улучшений.
         """
