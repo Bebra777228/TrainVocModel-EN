@@ -388,7 +388,7 @@ class RMVPE:
         devided[maxx <= thred] = 0
         return devided
 
-    def infer_from_audio_basic(self, audio, thred=0.04):
+    def infer_from_audio_basic(self, audio, thred=0.03):
         """
         Базовая версия извлечения F0 без улучшений.
         """
@@ -400,7 +400,7 @@ class RMVPE:
             hidden = hidden.astype("float32")
 
         f0 = self.decode(hidden, thred=thred)
-        f0[(f0 < 40) | (f0 > 1500)] = 0
+        f0[(f0 < 50) | (f0 > 1100)] = 0
         return f0
 
     def infer_from_audio_savgol(self, audio, thred=0.04, window_size=5):
