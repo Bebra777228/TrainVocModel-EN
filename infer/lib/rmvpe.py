@@ -333,6 +333,18 @@ class MelSpectrogram(torch.nn.Module):
         return log_mel_spec
 
 
+class F0PostProcessor(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size):
+        super(F0PostProcessor, self).__init__()
+        self.gru = nn.GRU(input_size, hidden_size, batch_first=True, bidirectional=True)
+        self.fc = nn.Linear(hidden_size * 2, output_size)
+
+    def forward(self, x):
+        x, _ = self.gru(x)
+        x = self.fc(x)
+        return x
+
+
 class RMVPE:
     def __init__(self, model_path, is_half, device=None):
         self.resample_kernel = {}
@@ -350,6 +362,10 @@ class RMVPE:
             is_half, N_MELS, 16000, 1024, 160, None, 30, 8000
         ).to(device)
         self.model = self.model.to(device)
+
+        # Инициализация f0_post_processor
+        self.f0_post_processor = F0PostProcessor(input_size=N_CLASS, hidden_size=256, output_size=1).to(device)
+
         cents_mapping = 20 * np.arange(N_CLASS) + 1997.3794084376191
         self.cents_mapping = np.pad(cents_mapping, (4, 4))
 
@@ -450,7 +466,7 @@ class RMVPE:
 
         # Постобработка BiGRU
         hidden_tensor = torch.from_numpy(hidden).float().to(self.device).unsqueeze(0)
-        f0 = self.f0_post_processor(hidden_tensor).squeeze(0).cpu().numpy()
+        f0 = self.f0_post_processor(hidden_tensor).squeeze(0).detach().cpu().numpy()
         f0 = 10 * (2 ** (f0 / 1200))
         f0[f0 < 10] = 0
         f0[(f0 < 40) | (f0 > 1500)] = 0
@@ -490,14 +506,12 @@ class RMVPE:
 
         # Постобработка BiGRU
         hidden_tensor = torch.from_numpy(hidden).float().to(self.device).unsqueeze(0)
-        f0 = self.f0_post_processor(hidden_tensor).squeeze(0).cpu().numpy()
+        f0 = self.f0_post_processor(hidden_tensor).squeeze(0).detach().cpu().numpy()
         f0 = 10 * (2 ** (f0 / 1200))
         f0[f0 < 10] = 0
         f0[(f0 < 40) | (f0 > 1500)] = 0
 
-        # Сглаживание F0 с помощью фильтра Савицкого-Голея
-        smoothed_f0 = savgol_filter(f0, window_length=window_size, polyorder=2)
-        return smoothed_f0
+        return f0
 
     def infer_from_audio_full(self, audio, window_size=5):
         """
@@ -525,7 +539,7 @@ class RMVPE:
     
         # Постобработка BiGRU
         hidden_tensor = torch.from_numpy(hidden).float().to(self.device).unsqueeze(0)
-        f0_bigru = self.f0_post_processor(hidden_tensor).squeeze(0).cpu().numpy()
+        f0_bigru = self.f0_post_processor(hidden_tensor).squeeze(0).detach().cpu().numpy()
         f0_bigru = 10 * (2 ** (f0_bigru / 1200))
         f0_bigru[f0_bigru < 10] = 0
         f0_bigru[(f0_bigru < 40) | (f0_bigru > 1500)] = 0
