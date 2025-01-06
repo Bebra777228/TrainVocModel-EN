@@ -1,14 +1,14 @@
 import datetime
 import glob
 import logging
-import absl.logging
-import warnings
 import os
 import sys
+import warnings
 from random import randint, shuffle
 from time import sleep
 from time import time as ttime
 
+import absl.logging
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
@@ -35,7 +35,7 @@ from rvc.train.utils import (
 )
 
 # Настройка уровня логирования для различных библиотек
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 logging.getLogger("tensorflow").setLevel(logging.WARNING)
 logging.getLogger("h5py").setLevel(logging.WARNING)
 logging.getLogger("jax").setLevel(logging.WARNING)
