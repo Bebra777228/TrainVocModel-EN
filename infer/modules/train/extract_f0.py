@@ -37,10 +37,10 @@ class FeatureInput(object):
         self.fs = samplerate
         self.hop = hop_size
         self.window_size = 5
-        self.thred = 0.03
+        self.thred = 0.04
         self.f0_bin = 256
-        self.f0_max = 1100.0
-        self.f0_min = 50.0
+        self.f0_max = 1500.0
+        self.f0_min = 40.0
         self.f0_mel_min = 1127 * np.log(1 + self.f0_min / 700)
         self.f0_mel_max = 1127 * np.log(1 + self.f0_max / 700)
 
@@ -62,10 +62,20 @@ class FeatureInput(object):
             f0 = pyworld.stonemask(x.astype(np.double), f0, t, self.fs)
 
         elif f0_method == "rmvpe":
-            f0 = self.model_rmvpe.infer_from_audio(x, self.thred)
-        elif f0_method == "rmvpe+":
-            f0 = self.model_rmvpe.infer_from_audio_modified(x, self.thred, self.f0_min, self.f0_max, self.window_size)
-
+            f0 = self.model_rmvpe.infer_from_audio_basic(x)
+        elif f0_method == "rmvpe smooth":
+            f0 = self.model_rmvpe.infer_from_audio_savgol(x)
+        elif f0_method == "rmvpe auto":
+            f0 = self.model_rmvpe.infer_from_audio_autothred(x)
+        elif f0_method == "rmvpe bigru":
+            f0 = self.model_rmvpe.infer_from_audio_bigru(x)
+        elif f0_method == "rmvpe avg":
+            f0 = self.model_rmvpe.infer_from_audio_weighted(x)
+        elif f0_method == "rmvpe mix":
+            f0 = self.model_rmvpe.infer_from_audio_unified(x)
+        elif f0_method == "rmvpe full":
+            f0 = self.model_rmvpe.infer_from_audio_full(x)
+        
         return f0
 
     def coarse_f0(self, f0):
