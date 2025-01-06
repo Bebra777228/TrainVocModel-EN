@@ -1,12 +1,23 @@
 import os
 import sys
 import logging
+import absl.logging
+import warnings
+
+# Настройка уровня логирования для различных библиотек
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+logging.getLogger("tensorflow").setLevel(logging.WARNING)
+logging.getLogger("h5py").setLevel(logging.WARNING)
+logging.getLogger("jax").setLevel(logging.WARNING)
+logging.getLogger("numexpr").setLevel(logging.WARNING)
+logging.getLogger("pytorch_lightning").setLevel(logging.WARNING)
+absl.logging.set_verbosity(absl.logging.WARNING)
+
+# Подавление предупреждений
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 logger = logging.getLogger(__name__)
-logging.getLogger('tensorflow').setLevel(logging.WARNING)
-logging.getLogger('h5py').setLevel(logging.WARNING)
-logging.getLogger('jax').setLevel(logging.WARNING)
-logging.getLogger('numexpr').setLevel(logging.WARNING)
 
 now_dir = os.getcwd()
 sys.path.append(os.path.join(now_dir))
