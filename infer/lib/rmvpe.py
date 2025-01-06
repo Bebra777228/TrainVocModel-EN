@@ -5,9 +5,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from librosa.filters import mel
-from scipy.signal import medfilt
+from scipy.signal import medfilt, savgol_filter
 
-# Constants for readability
+# Константы для удобства
 N_MELS = 128
 N_CLASS = 360
 
@@ -368,30 +368,6 @@ class RMVPE:
         f0[f0 == 10] = 0
         return f0
 
-    def infer_from_audio(self, audio, thred=0.03):
-        audio = torch.from_numpy(audio).float().to(self.device).unsqueeze(0)
-        mel = self.mel_extractor(audio, center=True)
-        hidden = self.mel2hidden(mel)
-        hidden = hidden.squeeze(0).cpu().numpy()
-        if self.is_half == True:
-            hidden = hidden.astype("float32")
-        f0 = self.decode(hidden, thred=thred)
-        return f0
-
-    def infer_from_audio_modified(
-        self, audio, thred=0.03, f0_min=50, f0_max=1100, window_size=5
-    ):
-        audio = torch.from_numpy(audio).float().to(self.device).unsqueeze(0)
-        mel = self.mel_extractor(audio, center=True)
-        hidden = self.mel2hidden(mel)
-        hidden = hidden.squeeze(0).cpu().numpy()
-        if self.is_half:
-            hidden = hidden.astype("float32")
-        f0 = self.decode(hidden, thred=thred)
-        f0[(f0 < f0_min) | (f0 > f0_max)] = 0
-        smoothed_f0 = medfilt(f0, kernel_size=window_size)
-        return smoothed_f0
-
     def to_local_average_cents(self, salience, thred=0.05):
         center = np.argmax(salience, axis=1)
         salience = np.pad(salience, ((0, 0), (4, 4)))
@@ -411,3 +387,152 @@ class RMVPE:
         maxx = np.max(salience, axis=1)
         devided[maxx <= thred] = 0
         return devided
+
+    def infer_from_audio_basic(self, audio, thred=0.04):
+        """
+        Базовая версия извлечения F0 без улучшений.
+        """
+        audio = torch.from_numpy(audio).float().to(self.device).unsqueeze(0)
+        mel = self.mel_extractor(audio, center=True)
+        hidden = self.mel2hidden(mel)
+        hidden = hidden.squeeze(0).cpu().numpy()
+        if self.is_half:
+            hidden = hidden.astype("float32")
+
+        f0 = self.decode(hidden, thred=thred)
+        f0[(f0 < 40) | (f0 > 1500)] = 0
+        return f0
+
+    def infer_from_audio_savgol(self, audio, thred=0.04, window_size=5):
+        """
+        Версия с фильтром Савицкого-Голея для сглаживания F0.
+        """
+        audio = torch.from_numpy(audio).float().to(self.device).unsqueeze(0)
+        mel = self.mel_extractor(audio, center=True)
+        hidden = self.mel2hidden(mel)
+        hidden = hidden.squeeze(0).cpu().numpy()
+        if self.is_half:
+            hidden = hidden.astype("float32")
+
+        f0 = self.decode(hidden, thred=thred)
+        f0[(f0 < 40) | (f0 > 1500)] = 0
+        smoothed_f0 = savgol_filter(f0, window_length=window_size, polyorder=2)
+        return smoothed_f0
+
+    def infer_from_audio_autothred(self, audio, window_size=5):
+        """
+        Версия с автоматической настройкой порога.
+        """
+        audio = torch.from_numpy(audio).float().to(self.device).unsqueeze(0)
+        mel = self.mel_extractor(audio, center=True)
+        hidden = self.mel2hidden(mel)
+        hidden = hidden.squeeze(0).cpu().numpy()
+        if self.is_half:
+            hidden = hidden.astype("float32")
+
+        # Автоматическая настройка порога
+        thred = np.median(hidden) * 0.5
+        f0 = self.decode(hidden, thred=thred)
+        f0[(f0 < 40) | (f0 > 1500)] = 0
+        smoothed_f0 = savgol_filter(f0, window_length=window_size, polyorder=2)
+        return smoothed_f0
+
+    def infer_from_audio_bigru(self, audio, thred=0.04):
+        """
+        Версия с постобработкой BiGRU для учета временных зависимостей.
+        """
+        audio = torch.from_numpy(audio).float().to(self.device).unsqueeze(0)
+        mel = self.mel_extractor(audio, center=True)
+        hidden = self.mel2hidden(mel)
+        hidden = hidden.squeeze(0).cpu().numpy()
+        if self.is_half:
+            hidden = hidden.astype("float32")
+
+        # Постобработка BiGRU
+        hidden_tensor = torch.from_numpy(hidden).float().to(self.device).unsqueeze(0)
+        f0 = self.f0_post_processor(hidden_tensor).squeeze(0).cpu().numpy()
+        f0 = 10 * (2 ** (f0 / 1200))
+        f0[f0 < 10] = 0
+        f0[(f0 < 40) | (f0 > 1500)] = 0
+        return f0
+
+    def infer_from_audio_weighted(self, audio, thred=0.04):
+        """
+        Версия с улучшенным декодированием F0 (взвешенное усреднение).
+        """
+        audio = torch.from_numpy(audio).float().to(self.device).unsqueeze(0)
+        mel = self.mel_extractor(audio, center=True)
+        hidden = self.mel2hidden(mel)
+        hidden = hidden.squeeze(0).cpu().numpy()
+        if self.is_half:
+            hidden = hidden.astype("float32")
+
+        # Взвешенное усреднение
+        f0 = self.to_local_average_cents(hidden, thred=thred)
+        f0 = 10 * (2 ** (f0 / 1200))
+        f0[f0 < 10] = 0
+        f0[(f0 < 40) | (f0 > 1500)] = 0
+        return f0
+
+    def infer_from_audio_unified(self, audio, window_size=5):
+        """
+        Объединенная версия со всеми улучшениями.
+        """
+        audio = torch.from_numpy(audio).float().to(self.device).unsqueeze(0)
+        mel = self.mel_extractor(audio, center=True)
+        hidden = self.mel2hidden(mel)
+        hidden = hidden.squeeze(0).cpu().numpy()
+        if self.is_half:
+            hidden = hidden.astype("float32")
+
+        # Автоматическая настройка порога
+        thred = np.median(hidden) * 0.5
+
+        # Постобработка BiGRU
+        hidden_tensor = torch.from_numpy(hidden).float().to(self.device).unsqueeze(0)
+        f0 = self.f0_post_processor(hidden_tensor).squeeze(0).cpu().numpy()
+        f0 = 10 * (2 ** (f0 / 1200))
+        f0[f0 < 10] = 0
+        f0[(f0 < 40) | (f0 > 1500)] = 0
+
+        # Сглаживание F0 с помощью фильтра Савицкого-Голея
+        smoothed_f0 = savgol_filter(f0, window_length=window_size, polyorder=2)
+        return smoothed_f0
+
+    def infer_from_audio_full(self, audio, window_size=5):
+        """
+        Объединенная версия со всеми улучшениями:
+        - Автоматическая настройка порога.
+        - Взвешенное усреднение для декодирования F0.
+        - Постобработка BiGRU.
+        - Сглаживание F0 с помощью фильтра Савицкого-Голея.
+        """
+        audio = torch.from_numpy(audio).float().to(self.device).unsqueeze(0)
+        mel = self.mel_extractor(audio, center=True)
+        hidden = self.mel2hidden(mel)
+        hidden = hidden.squeeze(0).cpu().numpy()
+        if self.is_half:
+            hidden = hidden.astype("float32")
+    
+        # Автоматическая настройка порога
+        thred = np.median(hidden) * 0.5
+    
+        # Взвешенное усреднение для декодирования F0
+        f0 = self.to_local_average_cents(hidden, thred=thred)
+        f0 = 10 * (2 ** (f0 / 1200))
+        f0[f0 < 10] = 0
+        f0[(f0 < 40) | (f0 > 1500)] = 0
+    
+        # Постобработка BiGRU
+        hidden_tensor = torch.from_numpy(hidden).float().to(self.device).unsqueeze(0)
+        f0_bigru = self.f0_post_processor(hidden_tensor).squeeze(0).cpu().numpy()
+        f0_bigru = 10 * (2 ** (f0_bigru / 1200))
+        f0_bigru[f0_bigru < 10] = 0
+        f0_bigru[(f0_bigru < 40) | (f0_bigru > 1500)] = 0
+    
+        # Комбинирование результатов взвешенного усреднения и BiGRU
+        f0_combined = (f0 + f0_bigru) / 2  # Среднее значение
+    
+        # Сглаживание F0 с помощью фильтра Савицкого-Голея
+        smoothed_f0 = savgol_filter(f0_combined, window_length=window_size, polyorder=2)
+        return smoothed_f0
