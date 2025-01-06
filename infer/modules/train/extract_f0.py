@@ -62,7 +62,7 @@ class FeatureInput(object):
             f0 = pyworld.stonemask(x.astype(np.double), f0, t, self.fs)
 
         elif f0_method == "rmvpe":
-            f0 = self.model_rmvpe.infer_from_audio_basic(x)
+            f0 = self.model_rmvpe.infer_from_audio(x)
         elif f0_method == "rmvpe smooth":
             f0 = self.model_rmvpe.infer_from_audio_savgol(x)
         elif f0_method == "rmvpe auto":
