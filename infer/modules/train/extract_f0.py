@@ -63,17 +63,17 @@ class FeatureInput(object):
 
         elif f0_method == "rmvpe":
             f0 = self.model_rmvpe.infer_from_audio(x)
-        elif f0_method == "rmvpe smooth":
+        elif f0_method == "rmvpe_smooth":
             f0 = self.model_rmvpe.infer_from_audio_savgol(x)
-        elif f0_method == "rmvpe auto":
+        elif f0_method == "rmvpe_auto":
             f0 = self.model_rmvpe.infer_from_audio_autothred(x)
-        elif f0_method == "rmvpe bigru":
+        elif f0_method == "rmvpe_bigru":
             f0 = self.model_rmvpe.infer_from_audio_bigru(x)
-        elif f0_method == "rmvpe avg":
+        elif f0_method == "rmvpe_avg":
             f0 = self.model_rmvpe.infer_from_audio_weighted(x)
-        elif f0_method == "rmvpe mix":
+        elif f0_method == "rmvpe_mix":
             f0 = self.model_rmvpe.infer_from_audio_unified(x)
-        elif f0_method == "rmvpe full":
+        elif f0_method == "rmvpe_full":
             f0 = self.model_rmvpe.infer_from_audio_full(x)
         
         return f0
