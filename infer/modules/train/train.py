@@ -49,7 +49,8 @@ except Exception:
     from torch.amp import GradScaler, autocast
 
 torch.backends.cudnn.deterministic = False
-torch.backends.cudnn.benchmark = False
+torch.backends.cudnn.benchmark = True
+
 from time import sleep
 from time import time as ttime
 
