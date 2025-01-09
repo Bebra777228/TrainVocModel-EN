@@ -58,7 +58,7 @@ try:
             index_added.add(big_npy[i : i + batch_size_add])
 
         faiss.write_index(index_added, index_filepath)
-        print(f"Индекс успешно сохранен - '{index_filename}'")
+        print(f"Индекс успешно сохранен - '{index_filepath}'")
 
 except Exception as error:
     print(f"Произошла ошибка при извлечении индекса: {error}")
