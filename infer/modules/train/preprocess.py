@@ -13,16 +13,18 @@ sys.path.append(os.getcwd())
 from infer.lib.audio import load_audio
 from infer.lib.slicer import Slicer
 
-n_p = int(sys.argv[1])
-exp_dir = sys.argv[2]
-inp_root = sys.argv[3]
-per = float(sys.argv[4])
-sr = int(sys.argv[5])
-normalize = sys.argv[6] == "True"
+# Парсинг аргументов командной строки
+n_p = int(sys.argv[1])  # Количество процессов
+exp_dir = sys.argv[2]  # Директория для сохранения результатов
+inp_root = sys.argv[3]  # Директория с входными аудиофайлами
+per = float(sys.argv[4])  # Длина сегмента в секундах
+sr = int(sys.argv[5])  # Частота дискретизации
+normalize = sys.argv[6] == "True"  # Флаг для включения/выключения нормализации
 
-SR_TARGET = sr
-RES_TYPE = "soxr_vhq"
-SAMPLE_RATE_16K = 16000
+# Константы
+SR_TARGET = sr  # Целевая частота дискретизации
+RES_TYPE = "soxr_vhq"  # Тип ресемплинга
+SAMPLE_RATE_16K = 16000  # Частота дискретизации 16 кГц
 
 f = open(f"{exp_dir}/logfile.log", "a+")
 
