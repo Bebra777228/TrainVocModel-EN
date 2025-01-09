@@ -99,7 +99,7 @@ class PreProcess:
             # Нарезка аудио на сегменты
             for audio in self.slicer.slice(audio):
                 i = 0
-                while 1:
+                while True:
                     # Вычисление начальной точки сегмента
                     start = int(self.sr * (self.per - self.overlap) * i)
                     i += 1
