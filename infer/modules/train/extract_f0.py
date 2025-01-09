@@ -63,9 +63,9 @@ class FeatureInput(object):
             )
             f0 = pyworld.stonemask(x.astype(np.double), f0, t, self.fs)
         elif f0_method == "rmvpe":
-            f0 = self.model_rmvpe.infer_from_audio(x, thred=0.03)
+            f0 = self.model_rmvpe.infer_from_audio(x, 0.03)
         elif f0_method == "rmvpe+":
-            f0 = self.model_rmvpe.infer_from_audio_modified(x, thred=0.04, self.f0_min, self.f0_max, self.window_size)
+            f0 = self.model_rmvpe.infer_from_audio_modified(x, 0.04, self.f0_min, self.f0_max, self.window_size)
 
         return f0
 
