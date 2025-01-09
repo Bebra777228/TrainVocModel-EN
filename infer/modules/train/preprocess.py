@@ -14,17 +14,17 @@ from infer.lib.audio import load_audio
 from infer.lib.slicer import Slicer
 
 # Парсинг аргументов командной строки
-n_p = int(sys.argv[1])  # Количество процессов
-exp_dir = sys.argv[2]  # Директория для сохранения результатов
-inp_root = sys.argv[3]  # Директория с входными аудиофайлами
-per = float(sys.argv[4])  # Длина сегмента в секундах
-sr = int(sys.argv[5])  # Частота дискретизации
-normalize = sys.argv[6] == "True"  # Флаг для включения/выключения нормализации
+exp_dir = sys.argv[1]  # Директория для сохранения результатов
+input_root = sys.argv[2]  # Директория с входными аудиофайлами
+percentage = float(sys.argv[3])  # Длина сегмента в секундах
+sample_rate = int(sys.argv[4])  # Частота дискретизации
+normalize = sys.argv[5] == "True"  # Флаг для включения/выключения нормализации
 
 # Константы
-SR_TARGET = sr  # Целевая частота дискретизации
 RES_TYPE = "soxr_vhq"  # Тип ресемплинга
 SAMPLE_RATE_16K = 16000  # Частота дискретизации 16 кГц
+sr_target = sample_rate  # Целевая частота дискретизации
+num_processes = os.cpu_count()  # Количество процессов
 
 f = open(f"{exp_dir}/logfile.log", "a+")
 
@@ -37,7 +37,7 @@ def printt(strr):
 
 
 class PreProcess:
-    def __init__(self, sr, sr_trgt, exp_dir, per=3.0, normalize=True):
+    def __init__(self, sample_rate, sr_target, exp_dir, percentage=3.0, normalize=True):
         # Директории для сохранения обработанных аудиофайлов
         self.gt_wavs_dir = os.path.join(exp_dir, "0_gt_wavs")
         self.wavs16k_dir = os.path.join(exp_dir, "1_16k_wavs")
@@ -48,21 +48,21 @@ class PreProcess:
 
         # Инициализация Slicer для нарезки аудио
         self.slicer = Slicer(
-            sr=sr,
+            sr=sample_rate,
             threshold=-42,
             min_length=1500,
             min_interval=400,
             hop_size=15,
             max_sil_kept=500,
         )
-        self.sr = sr  # Частота дискретизации
-        self.bh, self.ah = signal.butter(N=5, Wn=48, btype="high", fs=self.sr)  # Фильтр высоких частот
-        self.per = per  # Длина сегмента
+        self.sample_rate = sample_rate  # Частота дискретизации
+        self.b_high, self.a_high = signal.butter(N=5, Wn=48, btype="high", fs=self.sample_rate)  # Фильтр высоких частот
+        self.percentage = percentage  # Длина сегмента
         self.overlap = 0.3  # Перекрытие между сегментами
-        self.tail = self.per + self.overlap  # Хвост для обработки
-        self.max = 0.9  # Максимальное значение для нормализации
+        self.tail = self.percentage + self.overlap  # Хвост для обработки
+        self.max_amplitude = 0.9  # Максимальное значение для нормализации
         self.alpha = 0.75  # Коэффициент для нормализации
-        self.sr_trgt = sr_trgt  # Целевая частота дискретизации
+        self.sr_target = sr_target  # Целевая частота дискретизации
         self.normalize = normalize  # Флаг для включения/выключения нормализации
 
     def norm_write(self, tmp_audio, idx0, idx1):
@@ -73,17 +73,17 @@ class PreProcess:
             return
 
         # Ресемплирование аудио до целевой частоты дискретизации
-        tmp_audio = librosa.resample(tmp_audio, orig_sr=self.sr, target_sr=self.sr_trgt, res_type=RES_TYPE)
+        tmp_audio = librosa.resample(tmp_audio, orig_sr=self.sample_rate, target_sr=self.sr_target, res_type=RES_TYPE)
 
         # Применение нормализации
         if self.normalize:
-            tmp_audio = (tmp_audio / tmp_max * (self.max * self.alpha)) + (1 - self.alpha) * tmp_audio
+            tmp_audio = (tmp_audio / tmp_max * (self.max_amplitude * self.alpha)) + (1 - self.alpha) * tmp_audio
 
         # Сохранение аудио в формате WAV
-        wavfile.write(f"{self.gt_wavs_dir}/{idx0}_{idx1}.wav", self.sr_trgt, tmp_audio.astype(np.float32))
+        wavfile.write(f"{self.gt_wavs_dir}/{idx0}_{idx1}.wav", self.sr_target, tmp_audio.astype(np.float32))
 
         # Ресемплирование аудио до 16 кГц
-        tmp_audio = librosa.resample(tmp_audio, orig_sr=self.sr, target_sr=SAMPLE_RATE_16K, res_type=RES_TYPE)
+        tmp_audio = librosa.resample(tmp_audio, orig_sr=self.sample_rate, target_sr=SAMPLE_RATE_16K, res_type=RES_TYPE)
 
         # Сохранение аудио в формате WAV (16 кГц)
         wavfile.write(f"{self.wavs16k_dir}/{idx0}_{idx1}.wav", SAMPLE_RATE_16K, tmp_audio.astype(np.float32))
@@ -91,9 +91,9 @@ class PreProcess:
     def pipeline(self, path, idx0):
         try:
             # Загрузка аудио
-            audio = load_audio(path, self.sr_trgt)
+            audio = load_audio(path, self.sr_target)
             # Применение фильтра высоких частот
-            audio = signal.lfilter(self.bh, self.ah, audio)
+            audio = signal.lfilter(self.b_high, self.a_high, audio)
 
             idx1 = 0
             # Нарезка аудио на сегменты
@@ -101,11 +101,11 @@ class PreProcess:
                 i = 0
                 while True:
                     # Вычисление начальной точки сегмента
-                    start = int(self.sr * (self.per - self.overlap) * i)
+                    start = int(self.sample_rate * (self.percentage - self.overlap) * i)
                     i += 1
                     # Проверка, остался ли хвост аудио
-                    if len(audio[start:]) > self.tail * self.sr:
-                        tmp_audio = audio[start : start + int(self.per * self.sr)]
+                    if len(audio[start:]) > self.tail * self.sample_rate:
+                        tmp_audio = audio[start : start + int(self.percentage * self.sample_rate)]
                         self.norm_write(tmp_audio, idx0, idx1)
                         idx1 += 1
                     else:
@@ -122,16 +122,16 @@ class PreProcess:
         for path, idx0 in infos:
             self.pipeline(path, idx0)
 
-    def pipeline_mp_inp_dir(self, inp_root, n_p):
+    def pipeline_mp_inp_dir(self, input_root, num_processes):
         printt("Обработка датасета...")
         try:
             # Сбор информации о файлах в директории
-            infos = [(os.path.join(inp_root, name), idx) for idx, name in enumerate(sorted(list(os.listdir(inp_root))))]
+            infos = [(os.path.join(input_root, name), idx) for idx, name in enumerate(sorted(list(os.listdir(input_root))))]
 
             # Параллельная обработка
             ps = []
-            for i in range(n_p):
-                p = multiprocessing.Process(target=self.pipeline_mp, args=(infos[i::n_p]))
+            for i in range(num_processes):
+                p = multiprocessing.Process(target=self.pipeline_mp, args=(infos[i::num_processes]))
                 ps.append(p)
                 p.start()
             for p in ps:
@@ -142,13 +142,13 @@ class PreProcess:
             sys.exit(1)
 
 
-def preprocess_trainset(inp_root, sr, n_p, exp_dir, per, normalize):
+def preprocess_trainset(input_root, sample_rate, num_processes, exp_dir, percentage, normalize):
     # Инициализация и запуск обработки
-    pp = PreProcess(sr, SR_TARGET, exp_dir, per, normalize)
-    pp.pipeline_mp_inp_dir(inp_root, n_p)
+    pp = PreProcess(sample_rate, sr_target, exp_dir, percentage, normalize)
+    pp.pipeline_mp_inp_dir(input_root, num_processes)
 
 
 if __name__ == "__main__":
     # Запуск препроцессинга
-    preprocess_trainset(inp_root, sr, n_p, exp_dir, per, normalize)
+    preprocess_trainset(input_root, sample_rate, num_processes, exp_dir, percentage, normalize)
     printt("\n\n")
