@@ -117,7 +117,7 @@ else:
                 # Выводим прогресс
                 if idx % n == 0:
                     printt(f"{idx}/{len(todo)} | {feats.shape}")
-
-            printt("Все признаки извлечены!")
         except:
             printt(traceback.format_exc())
+
+    printt("Все признаки извлечены!")
