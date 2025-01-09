@@ -8,11 +8,7 @@ import soundfile as sf
 import torch
 import torch.nn.functional as F
 
-n_part = int(sys.argv[1])
-i_part = int(sys.argv[2])
-exp_dir = sys.argv[3]
-version = sys.argv[4]
-is_half = sys.argv[5].lower() == "true"
+exp_dir = sys.argv[1]
 
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
@@ -36,11 +32,7 @@ def printt(strr):
 model_path = "assets/hubert/hubert_base.pt"
 
 wavPath = f"{exp_dir}/1_16k_wavs"
-outPath = (
-    f"{exp_dir}/3_feature256"
-    if version == "v1"
-    else f"{exp_dir}/3_feature768"
-)
+outPath = f"{exp_dir}/3_feature768"
 os.makedirs(outPath, exist_ok=True)
 
 
@@ -58,23 +50,14 @@ def readwave(wav_path, normalize=False):
     return feats
 
 if os.access(model_path, os.F_OK) == False:
-    printt(
-        f"Error: Extracting is shut down because {model_path} does not exist, you may download it from https://huggingface.co/lj1995/VoiceConversionWebUI/tree/main"
-    )
+    printt(f"Error: Extracting is shut down because {model_path} does not exist, you may download it from https://huggingface.co/lj1995/VoiceConversionWebUI/tree/main")
     exit(0)
-models, saved_cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task(
-    [model_path],
-    suffix="",
-)
+models, saved_cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([model_path], suffix="")
 model = models[0]
 model = model.to(device)
-
-if is_half:
-    if device not in ["mps", "cpu"]:
-        model = model.half()
 model.eval()
 
-todo = sorted(list(os.listdir(wavPath)))[i_part::n_part]
+todo = sorted(list(os.listdir(wavPath)))[0::1]
 n = max(1, len(todo) // 10)
 if len(todo) == 0:
     error_message = (
@@ -101,19 +84,13 @@ else:
                 feats = readwave(wav_path, normalize=saved_cfg.task.normalize)
                 padding_mask = torch.BoolTensor(feats.shape).fill_(False)
                 inputs = {
-                    "source": (
-                        feats.half().to(device)
-                        if is_half and device not in ["mps", "cpu"]
-                        else feats.to(device)
-                    ),
+                    "source": feats.to(device),
                     "padding_mask": padding_mask.to(device),
-                    "output_layer": 9 if version == "v1" else 12,
+                    "output_layer": 12,
                 }
                 with torch.no_grad():
                     logits = model.extract_features(**inputs)
-                    feats = (
-                        model.final_proj(logits[0]) if version == "v1" else logits[0]
-                    )
+                    feats = logits[0]
 
                 feats = feats.squeeze(0).float().cpu().numpy()
                 if np.isnan(feats).sum() == 0:
@@ -122,6 +99,6 @@ else:
                     printt(f"Ошибка: Файл {file} содержит некорректные значения (NaN).")
                 if idx % n == 0:
                     printt(f"{idx}/{len(todo)} | {feats.shape}")
+            printt("Все признаки извлечены!")
         except:
             printt(traceback.format_exc())
-    printt("Все признаки извлечены!")
