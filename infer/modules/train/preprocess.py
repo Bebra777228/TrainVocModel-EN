@@ -137,6 +137,7 @@ class PreProcess:
             for p in ps:
                 p.join()
             printt("Обработка успешно завершена!")
+            printt("\n\n")
         except Exception as e:
             printt(f"Ошибка! {traceback.format_exc()}")
             sys.exit(1)
@@ -151,4 +152,3 @@ def preprocess_trainset(input_root, sample_rate, num_processes, exp_dir, percent
 if __name__ == "__main__":
     # Запуск препроцессинга
     preprocess_trainset(input_root, sample_rate, num_processes, exp_dir, percentage, normalize)
-    printt("\n\n")
