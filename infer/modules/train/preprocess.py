@@ -131,7 +131,7 @@ class PreProcess:
             # Параллельная обработка
             ps = []
             for i in range(num_processes):
-                p = multiprocessing.Process(target=self.pipeline_mp, args=(infos[i::num_processes]))
+                p = multiprocessing.Process(target=self.pipeline_mp, args=(infos[i::num_processes],))
                 ps.append(p)
                 p.start()
             for p in ps:
