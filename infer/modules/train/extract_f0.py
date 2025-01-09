@@ -14,14 +14,10 @@ from infer.lib.rmvpe import RMVPE
 
 logging.getLogger("numba").setLevel(logging.WARNING)
 
-n_part = int(sys.argv[1])
-i_part = int(sys.argv[2])
-i_gpu = sys.argv[3]
-exp_dir = sys.argv[4]
-is_half = sys.argv[5]
-f0_method = sys.argv[6]
+exp_dir = sys.argv[1]
+f0_method = sys.argv[2]
 
-os.environ["CUDA_VISIBLE_DEVICES"] = str(i_gpu)
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 f = open(f"{exp_dir}/logfile.log", "a+")
 
@@ -48,7 +44,7 @@ class FeatureInput(object):
         rmvpe_path = "assets/rmvpe/rmvpe.pt"
 
         if not hasattr(self, "model_rmvpe"):
-            self.model_rmvpe = RMVPE(rmvpe_path, is_half=is_half, device="cuda")
+            self.model_rmvpe = RMVPE(rmvpe_path, is_half=False, device="cuda")
 
         if f0_method == "harvest":
             f0, t = pyworld.harvest(
@@ -126,7 +122,7 @@ if __name__ == "__main__":
         opt_path2 = f"{opt_root2}/{name}"
         paths.append([inp_path, opt_path1, opt_path2])
     try:
-        featureInput.go(paths[i_part::n_part], f0_method)
+        featureInput.go(paths[0::1], f0_method)
         printt("Тон извлечен!")
         printt("\n\n")
     except:
