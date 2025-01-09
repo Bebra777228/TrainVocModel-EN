@@ -37,7 +37,6 @@ class FeatureInput(object):
         self.fs = samplerate
         self.hop = hop_size
         self.window_size = 5
-        self.thred = 0.03
         self.f0_bin = 256
         self.f0_max = 1100.0
         self.f0_min = 50.0
@@ -62,25 +61,20 @@ class FeatureInput(object):
             f0 = pyworld.stonemask(x.astype(np.double), f0, t, self.fs)
 
         elif f0_method == "rmvpe":
-            f0 = self.model_rmvpe.infer_from_audio(x, self.thred)
+            f0 = self.model_rmvpe.infer_from_audio(x, thred=0.03)
         elif f0_method == "rmvpe+":
-            f0 = self.model_rmvpe.infer_from_audio_modified(x, self.thred, self.f0_min, self.f0_max, self.window_size)
+            f0 = self.model_rmvpe.infer_from_audio_modified(x, thred=0.04, self.f0_min, self.f0_max, self.window_size)
 
         return f0
 
     def coarse_f0(self, f0):
         f0_mel = 1127 * np.log(1 + f0 / 700)
-        f0_mel[f0_mel > 0] = (f0_mel[f0_mel > 0] - self.f0_mel_min) * (
-            self.f0_bin - 2
-        ) / (self.f0_mel_max - self.f0_mel_min) + 1
+        f0_mel[f0_mel > 0] = (f0_mel[f0_mel > 0] - self.f0_mel_min) * (self.f0_bin - 2) / (self.f0_mel_max - self.f0_mel_min) + 1
 
         f0_mel[f0_mel <= 1] = 1
         f0_mel[f0_mel > self.f0_bin - 1] = self.f0_bin - 1
         f0_coarse = np.rint(f0_mel).astype(int)
-        assert f0_coarse.max() <= 255 and f0_coarse.min() >= 1, (
-            f0_coarse.max(),
-            f0_coarse.min(),
-        )
+        assert f0_coarse.max() <= 255 and f0_coarse.min() >= 1, (f0_coarse.max(), f0_coarse.min())
         return f0_coarse
 
     def go(self, paths, f0_method):
@@ -108,17 +102,9 @@ class FeatureInput(object):
                     ):
                         continue
                     featur_pit = self.compute_f0(inp_path, f0_method)
-                    np.save(
-                        opt_path2,
-                        featur_pit,
-                        allow_pickle=False,
-                    )
+                    np.save(opt_path2, featur_pit, allow_pickle=False)
                     coarse_pit = self.coarse_f0(featur_pit)
-                    np.save(
-                        opt_path1,
-                        coarse_pit,
-                        allow_pickle=False,
-                    )
+                    np.save(opt_path1, coarse_pit, allow_pickle=False)
                 except:
                     printt(f"Ошибка извлечения тона!\nФрагмент - {idx}\nФайл - {inp_path}\n{traceback.format_exc()}")
 
@@ -141,7 +127,7 @@ if __name__ == "__main__":
         paths.append([inp_path, opt_path1, opt_path2])
     try:
         featureInput.go(paths[i_part::n_part], f0_method)
+        printt("Тон извлечен!")
+        printt("\n\n")
     except:
         printt(f"Ошибка извлечения тона!\n{traceback.format_exc()}")
-    printt("Тон извлечен!")
-    printt("\n\n")
