@@ -20,7 +20,7 @@ per = float(sys.argv[4])
 sr = int(sys.argv[5])
 normalize = sys.argv[6] == "True"
 
-SR_TRHT = sr
+SR_TARGET = sr
 RES_TYPE = "soxr_vhq"
 SAMPLE_RATE_16K = 16000
 
@@ -60,7 +60,7 @@ class PreProcess:
         self.tail = self.per + self.overlap  # Хвост для обработки
         self.max = 0.9  # Максимальное значение для нормализации
         self.alpha = 0.75  # Коэффициент для нормализации
-        self.sr_trgt = SR_TRHT  # Целевая частота дискретизации
+        self.sr_trgt = sr_trgt  # Целевая частота дискретизации
         self.normalize = normalize  # Флаг для включения/выключения нормализации
 
     def norm_write(self, tmp_audio, idx0, idx1):
@@ -142,7 +142,7 @@ class PreProcess:
 
 def preprocess_trainset(inp_root, sr, n_p, exp_dir, per, normalize):
     # Инициализация и запуск обработки
-    pp = PreProcess(sr, SR_TRHT, exp_dir, per, normalize)
+    pp = PreProcess(sr, SR_TARGET, exp_dir, per, normalize)
     pp.pipeline_mp_inp_dir(inp_root, n_p)
 
 
