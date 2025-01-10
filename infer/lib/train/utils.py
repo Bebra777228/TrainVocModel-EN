@@ -263,6 +263,7 @@ def get_hparams(init=True):
     parser.add_argument("-l", "--if_latest", type=int, default=1)
     parser.add_argument("-c", "--if_cache_data_in_gpu", type=int, default=0)
     parser.add_argument("-o", "--optimizer", type=str, default="AdamW") # AdamW | RAdam
+    parser.add_argument("-s", "--scheduler", type=str, default="ExponentialLR")
 
     args = parser.parse_args()
     name = args.experiment_dir
@@ -288,6 +289,7 @@ def get_hparams(init=True):
     hparams.save_every_weights = args.save_every_weights
     hparams.if_cache_data_in_gpu = args.if_cache_data_in_gpu
     hparams.optimizer = args.optimizer
+    hparams.scheduler = args.scheduler
     hparams.data.training_files = "%s/filelist.txt" % experiment_dir
     return hparams
 
