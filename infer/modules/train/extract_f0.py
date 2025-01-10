@@ -34,7 +34,6 @@ class FeatureInput(object):
     def __init__(self, samplerate=16000, hop_size=160):
         self.fs = samplerate  # Частота дискретизации
         self.hop = hop_size  # Размер шага (в сэмплах)
-        self.window_size = 5  # Размер окна
         self.f0_bin = 256  # Количество бинов для F0
         self.f0_max = 1100.0  # Максимальное значение F0
         self.f0_min = 50.0  # Минимальное значение F0
@@ -45,7 +44,7 @@ class FeatureInput(object):
 
     # Метод для вычисления F0
     def compute_f0(self, path, f0_method):
-        x = load_audio(path, self.fs)  # Загрузка аудио
+        audio = load_audio(path, self.fs)  # Загрузка аудио
         rmvpe_path = "assets/rmvpe/rmvpe.pt"  # Путь к модели RMVPE
 
         # Инициализация модели RMVPE
@@ -55,17 +54,17 @@ class FeatureInput(object):
         # Извлечение F0 в зависимости от метода
         if f0_method == "harvest":
             f0, t = pyworld.harvest(
-                x.astype(np.double),
+                audio.astype(np.double),
                 fs=self.fs,
                 f0_ceil=self.f0_max,
                 f0_floor=self.f0_min,
                 frame_period=1000 * self.hop / self.fs,
             )
-            f0 = pyworld.stonemask(x.astype(np.double), f0, t, self.fs)
+            f0 = pyworld.stonemask(audio.astype(np.double), f0, t, self.fs)
         elif f0_method == "rmvpe":
-            f0 = self.model_rmvpe.infer_from_audio(x, 0.03)
+            f0 = self.model_rmvpe.infer_from_audio(audio, 0.03)
         elif f0_method == "rmvpe+":
-            f0 = self.model_rmvpe.infer_from_audio_modified(x, 0.04, self.f0_min, self.f0_max, self.window_size)
+            f0 = self.model_rmvpe.infer_from_audio_improved(audio, 0.04)
 
         return f0
 
