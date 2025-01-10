@@ -126,7 +126,7 @@ class Slicer:
 
     def _reduce_noise(self, waveform):
         # Apply a simple low-pass filter to reduce noise
-        sos = scipy.signal.butter(10, 0.125, btype='low', analog=False, output='sos')
+        sos = scipy.signal.butter(4, 0.2, btype='low', analog=False, output='sos')
         filtered = scipy.signal.sosfilt(sos, waveform)
         return filtered
 
