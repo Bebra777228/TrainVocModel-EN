@@ -2,16 +2,9 @@ import numpy as np
 import torch
 
 
-def get_rms(
-    y,
-    frame_length=2048,
-    hop_length=512,
-    pad_mode="constant",
-):
+def get_rms(y, frame_length=2048, hop_length=512, pad_mode="constant"):
     if isinstance(y, np.ndarray):
-        y = torch.tensor(
-            y, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        )
+        y = torch.tensor(y, device=torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     elif not isinstance(y, torch.Tensor):
         raise ValueError("Input must be a numpy array or torch tensor")
 
@@ -79,9 +72,7 @@ class Slicer:
         if samples.shape[0] <= self.min_length:
             return [waveform]
 
-        rms_list = get_rms(
-            y=samples, frame_length=self.win_size, hop_length=self.hop_size
-        ).squeeze(0)
+        rms_list = get_rms(y=samples, frame_length=self.win_size, hop_length=self.hop_size).squeeze(0)
 
         sil_tags = []
         silence_start, clip_start = None, 0
@@ -95,10 +86,7 @@ class Slicer:
                 continue
 
             is_leading_silence = silence_start == 0 and i > self.max_sil_kept
-            need_slice_middle = (
-                i - silence_start >= self.min_interval
-                and i - clip_start >= self.min_length
-            )
+            need_slice_middle = i - silence_start >= self.min_interval and i - clip_start >= self.min_length
 
             if not is_leading_silence and not need_slice_middle:
                 silence_start = None
@@ -112,21 +100,10 @@ class Slicer:
                     sil_tags.append((pos, pos))
                 clip_start = pos
             elif i - silence_start <= self.max_sil_kept * 2:
-                pos = rms_list[
-                    i - self.max_sil_kept : silence_start + self.max_sil_kept + 1
-                ].argmin()
+                pos = rms_list[i - self.max_sil_kept : silence_start + self.max_sil_kept + 1].argmin()
                 pos += i - self.max_sil_kept
-                pos_l = (
-                    rms_list[
-                        silence_start : silence_start + self.max_sil_kept + 1
-                    ].argmin()
-                    + silence_start
-                )
-                pos_r = (
-                    rms_list[i - self.max_sil_kept : i + 1].argmin()
-                    + i
-                    - self.max_sil_kept
-                )
+                pos_l = rms_list[silence_start : silence_start + self.max_sil_kept + 1].argmin() + silence_start
+                pos_r = rms_list[i - self.max_sil_kept : i + 1].argmin() + i - self.max_sil_kept
                 if silence_start == 0:
                     sil_tags.append((0, pos_r))
                     clip_start = pos_r
@@ -134,17 +111,8 @@ class Slicer:
                     sil_tags.append((min(pos_l, pos), max(pos_r, pos)))
                     clip_start = max(pos_r, pos)
             else:
-                pos_l = (
-                    rms_list[
-                        silence_start : silence_start + self.max_sil_kept + 1
-                    ].argmin()
-                    + silence_start
-                )
-                pos_r = (
-                    rms_list[i - self.max_sil_kept : i + 1].argmin()
-                    + i
-                    - self.max_sil_kept
-                )
+                pos_l = rms_list[silence_start : silence_start + self.max_sil_kept + 1].argmin() + silence_start
+                pos_r = rms_list[i - self.max_sil_kept : i + 1].argmin() + i - self.max_sil_kept
                 if silence_start == 0:
                     sil_tags.append((0, pos_r))
                 else:
@@ -153,10 +121,7 @@ class Slicer:
             silence_start = None
 
         total_frames = rms_list.shape[0]
-        if (
-            silence_start is not None
-            and total_frames - silence_start >= self.min_interval
-        ):
+        if silence_start is not None and total_frames - silence_start >= self.min_interval:
             silence_end = min(total_frames, silence_start + self.max_sil_kept)
             pos = rms_list[silence_start : silence_end + 1].argmin() + silence_start
             sil_tags.append((pos, total_frames + 1))
@@ -169,13 +134,9 @@ class Slicer:
                 chunks.append(self._apply_slice(waveform, 0, sil_tags[0][0]))
 
             for i in range(len(sil_tags) - 1):
-                chunks.append(
-                    self._apply_slice(waveform, sil_tags[i][1], sil_tags[i + 1][0])
-                )
+                chunks.append(self._apply_slice(waveform, sil_tags[i][1], sil_tags[i + 1][0]))
 
             if sil_tags[-1][1] < total_frames:
-                chunks.append(
-                    self._apply_slice(waveform, sil_tags[-1][1], total_frames)
-                )
+                chunks.append(self._apply_slice(waveform, sil_tags[-1][1], total_frames))
 
             return chunks
