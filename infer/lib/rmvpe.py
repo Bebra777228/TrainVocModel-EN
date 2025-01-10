@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from librosa.filters import mel
-from scipy.signal import medfilt
+from scipy.signal import savgol_filter
 
 # Constants for readability
 N_MELS = 128
@@ -194,6 +194,17 @@ class Decoder(nn.Module):
         return x
 
 
+class AttentionBlock(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(AttentionBlock, self).__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        attn = self.sigmoid(self.conv(x))
+        return x * attn
+
+
 class DeepUnet(nn.Module):
     def __init__(
         self,
@@ -214,6 +225,7 @@ class DeepUnet(nn.Module):
             inter_layers,
             n_blocks,
         )
+        self.attention = AttentionBlock(self.encoder.out_channel, self.encoder.out_channel)
         self.decoder = Decoder(
             self.encoder.out_channel, en_de_layers, kernel_size, n_blocks
         )
@@ -221,6 +233,7 @@ class DeepUnet(nn.Module):
     def forward(self, x):
         x, concat_tensors = self.encoder(x)
         x = self.intermediate(x)
+        x = self.attention(x)
         x = self.decoder(x, concat_tensors)
         return x
 
@@ -353,6 +366,11 @@ class RMVPE:
         cents_mapping = 20 * np.arange(N_CLASS) + 1997.3794084376191
         self.cents_mapping = np.pad(cents_mapping, (4, 4))
 
+        self.f0_min = 50
+        self.f0_max = 1100
+        self.savgol_window = 11
+        self.savgol_order = 2
+
     def mel2hidden(self, mel):
         with torch.no_grad():
             n_frames = mel.shape[-1]
@@ -378,19 +396,31 @@ class RMVPE:
         f0 = self.decode(hidden, thred=thred)
         return f0
 
-    def infer_from_audio_modified(
-        self, audio, thred=0.03, f0_min=50, f0_max=1100, window_size=5
-    ):
-        audio = torch.from_numpy(audio).float().to(self.device).unsqueeze(0)
-        mel = self.mel_extractor(audio, center=True)
-        hidden = self.mel2hidden(mel)
-        hidden = hidden.squeeze(0).cpu().numpy()
-        if self.is_half:
-            hidden = hidden.astype("float32")
-        f0 = self.decode(hidden, thred=thred)
-        f0[(f0 < f0_min) | (f0 > f0_max)] = 0
-        smoothed_f0 = medfilt(f0, kernel_size=window_size)
-        return smoothed_f0
+    def infer_from_audio_improved(self, audio, thred=0.03):
+        # Извлекаем F0 с помощью базового метода
+        f0 = self.infer_from_audio(audio, thred=thred)
+
+        # Применяем фильтр Савицкого-Голея для сглаживания
+        f0 = savgol_filter(f0, self.savgol_window, self.savgol_order)
+
+        # Коррекция октавных ошибок
+        f0 = self.correct_octave_errors(f0)
+
+        # Ограничение F0 по диапазону
+        f0[(f0 < self.f0_min) | (f0 > self.f0_max)] = 0
+
+        return f0
+
+    def correct_octave_errors(self, f0):
+        # Простой метод коррекции октавных ошибок
+        for i in range(1, len(f0)):
+            if f0[i] != 0 and f0[i - 1] != 0:
+                ratio = f0[i] / f0[i - 1]
+                if ratio > 1.5:
+                    f0[i] /= 2
+                elif ratio < 0.67:
+                    f0[i] *= 2
+        return f0
 
     def to_local_average_cents(self, salience, thred=0.05):
         center = np.argmax(salience, axis=1)
