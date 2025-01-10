@@ -94,6 +94,20 @@ from infer.lib.train.process_ckpt import savee
 
 global_step = 0
 
+
+def get_scheduler(optimizer, hps, epoch_str):
+    if hps.scheduler == "ExponentialLR":
+        return torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2)
+    elif hps.scheduler == "StepLR":
+        return torch.optim.lr_scheduler.StepLR(optimizer, step_size=1000, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2)
+    elif hps.scheduler == "MultiStepLR":
+        return torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[5000, 10000, 15000], gamma=hps.train.lr_decay, last_epoch=epoch_str - 2)
+    elif hps.scheduler == "CosineAnnealingLR":
+        return torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=hps.train.epochs, eta_min=1e-6, last_epoch=epoch_str - 2)
+    elif hps.scheduler == "ReduceLROnPlateau":
+        return torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=hps.train.lr_decay, patience=10, threshold=1e-4, threshold_mode='rel', cooldown=0, min_lr=0, eps=1e-08)
+
+
 class EpochRecorder:
     def __init__(self):
         self.last_time = ttime()
@@ -282,12 +296,8 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
                     )
                 )
 
-    scheduler_g = torch.optim.lr_scheduler.ExponentialLR(
-        optim_g, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2
-    )
-    scheduler_d = torch.optim.lr_scheduler.ExponentialLR(
-        optim_d, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2
-    )
+    scheduler_g = get_scheduler(optim_g, hps, epoch_str)
+    scheduler_d = get_scheduler(optim_d, hps, epoch_str)
 
     scaler = GradScaler(enabled=hps.train.fp16_run)
 
