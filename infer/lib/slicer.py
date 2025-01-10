@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 
-
 def get_rms(y, frame_length=2048, hop_length=512, pad_mode="constant"):
     if isinstance(y, np.ndarray):
         y = torch.tensor(y, device=torch.device("cuda" if torch.cuda.is_available() else "cpu"))
@@ -31,17 +30,8 @@ def get_rms(y, frame_length=2048, hop_length=512, pad_mode="constant"):
     power = torch.mean(torch.abs(x) ** 2, dim=-2, keepdim=True)
     return np.sqrt(power.cpu().numpy())
 
-
 class Slicer:
-    def __init__(
-        self,
-        sr: int,
-        threshold: float = -40.0,
-        min_length: int = 5000,
-        min_interval: int = 300,
-        hop_size: int = 20,
-        max_sil_kept: int = 5000,
-    ):
+    def __init__(self, sr, threshold=-40.0, min_length=5000, min_interval=300, hop_size=20, max_sil_kept=5000):
         if not min_length >= min_interval >= hop_size:
             raise ValueError("min_length >= min_interval >= hop_size is required")
         if not max_sil_kept >= hop_size:
@@ -64,16 +54,7 @@ class Slicer:
             end_idx = min(waveform.shape[0], end * self.hop_size)
             return waveform[start_idx:end_idx]
 
-    def slice(self, waveform):
-        if not isinstance(waveform, np.ndarray):
-            raise ValueError("Input must be a numpy array")
-
-        samples = waveform.mean(axis=0) if len(waveform.shape) > 1 else waveform
-        if samples.shape[0] <= self.min_length:
-            return [waveform]
-
-        rms_list = get_rms(y=samples, frame_length=self.win_size, hop_length=self.hop_size).squeeze(0)
-
+    def _detect_silence(self, rms_list):
         sil_tags = []
         silence_start, clip_start = None, 0
         for i, rms in enumerate(rms_list):
@@ -126,17 +107,35 @@ class Slicer:
             pos = rms_list[silence_start : silence_end + 1].argmin() + silence_start
             sil_tags.append((pos, total_frames + 1))
 
+        return sil_tags
+
+    def _extract_chunks(self, waveform, sil_tags):
+        total_frames = len(waveform) // self.hop_size
+        chunks = []
+        if sil_tags[0][0] > 0:
+            chunks.append(self._apply_slice(waveform, 0, sil_tags[0][0]))
+
+        for i in range(len(sil_tags) - 1):
+            chunks.append(self._apply_slice(waveform, sil_tags[i][1], sil_tags[i + 1][0]))
+
+        if sil_tags[-1][1] < total_frames:
+            chunks.append(self._apply_slice(waveform, sil_tags[-1][1], total_frames))
+
+        return chunks
+
+    def slice(self, waveform):
+        if not isinstance(waveform, np.ndarray):
+            raise ValueError("Input must be a numpy array")
+
+        samples = waveform.mean(axis=0) if len(waveform.shape) > 1 else waveform
+        if samples.shape[0] <= self.min_length:
+            return [waveform]
+
+        rms_list = get_rms(y=samples, frame_length=self.win_size, hop_length=self.hop_size).squeeze(0)
+
+        sil_tags = self._detect_silence(rms_list)
+
         if not sil_tags:
             return [waveform]
         else:
-            chunks = []
-            if sil_tags[0][0] > 0:
-                chunks.append(self._apply_slice(waveform, 0, sil_tags[0][0]))
-
-            for i in range(len(sil_tags) - 1):
-                chunks.append(self._apply_slice(waveform, sil_tags[i][1], sil_tags[i + 1][0]))
-
-            if sil_tags[-1][1] < total_frames:
-                chunks.append(self._apply_slice(waveform, sil_tags[-1][1], total_frames))
-
-            return chunks
+            return self._extract_chunks(waveform, sil_tags)
