@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import scipy.signal
 
 def get_rms(y, frame_length=2048, hop_length=512, pad_mode="constant"):
     if isinstance(y, np.ndarray):
@@ -123,9 +124,26 @@ class Slicer:
 
         return chunks
 
+    def _reduce_noise(self, waveform):
+        # Apply a simple low-pass filter to reduce noise
+        sos = scipy.signal.butter(10, 0.125, btype='low', analog=False, output='sos')
+        filtered = scipy.signal.sosfilt(sos, waveform)
+        return filtered
+
+    def _handle_edges(self, waveform, sil_tags):
+        total_frames = len(waveform) // self.hop_size
+        if sil_tags[0][0] > 0:
+            sil_tags.insert(0, (0, sil_tags[0][0]))
+        if sil_tags[-1][1] < total_frames:
+            sil_tags.append((sil_tags[-1][1], total_frames))
+        return sil_tags
+
     def slice(self, waveform):
         if not isinstance(waveform, np.ndarray):
             raise ValueError("Input must be a numpy array")
+
+        # Apply noise reduction
+        waveform = self._reduce_noise(waveform)
 
         samples = waveform.mean(axis=0) if len(waveform.shape) > 1 else waveform
         if samples.shape[0] <= self.min_length:
@@ -134,6 +152,9 @@ class Slicer:
         rms_list = get_rms(y=samples, frame_length=self.win_size, hop_length=self.hop_size).squeeze(0)
 
         sil_tags = self._detect_silence(rms_list)
+
+        # Handle edges
+        sil_tags = self._handle_edges(waveform, sil_tags)
 
         if not sil_tags:
             return [waveform]
