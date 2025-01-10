@@ -42,7 +42,7 @@ torch.backends.cudnn.benchmark = False
 from time import sleep
 from time import time as ttime
 
-import torch_optimizer as optimizer
+import torch_optimizer as optim
 import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.nn import functional as F
@@ -199,26 +199,50 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
         net_g = net_g.cuda(rank)
         net_d = net_d.cuda(rank)
 
-    if hps.optimizer == "AdamW":
+    # torch.optim
+    if hps.optimizer == "Adam":
+        optim_class = torch.optim.Adam
+    elif hps.optimizer == "AdamW":
         optim_class = torch.optim.AdamW
     elif hps.optimizer == "RAdam":
         optim_class = torch.optim.RAdam
+    elif hps.optimizer == "NAdam":
+        optim_class = torch.optim.NAdam
+    elif hps.optimizer == "Adamax":
+        optim_class = torch.optim.Adamax
+    elif hps.optimizer == "SparseAdam":
+        optim_class = torch.optim.SparseAdam
+    # optimizer
+    elif hps.optimizer == "Lamb":
+        optim_class = optim.Lamb
+    elif hps.optimizer == "Yogi":
+        optim_class = optim.Yogi
     elif hps.optimizer == "AdamP":
-        optim_class = optimizer.AdamP
-    elif hps.optimizer == "DiffGrad":
-        optim_class = optimizer.DiffGrad
-    elif hps.optimizer == "AdaBelief":
-        optim_class = optimizer.AdaBelief
+        optim_class = optim.AdamP
+    elif hps.optimizer == "SWATS":
+        optim_class = optim.SWATS
+    elif hps.optimizer == "AdaMod":
+        optim_class = optim.AdaMod
+    elif hps.optimizer == "QHAdam":
+        optim_class = optim.QHAdam
+    elif hps.optimizer == "Apollo":
+        optim_class = optim.Apollo
+    elif hps.optimizer == "NovoGrad":
+        optim_class = optim.NovoGrad
+    elif hps.optimizer == "AdaBound":
+        optim_class = optim.AdaBound
+    elif hps.optimizer == "Adahessian":
+        optim_class = optim.Adahessian
 
     optim_g = optim_class(
-        net_g.parameters(),
-        hps.train.learning_rate,
+        params=net_g.parameters(),
+        lr=hps.train.learning_rate,
         betas=hps.train.betas,
         eps=hps.train.eps,
     )
     optim_d = optim_class(
-        net_d.parameters(),
-        hps.train.learning_rate,
+        params=net_d.parameters(),
+        lr=hps.train.learning_rate,
         betas=hps.train.betas,
         eps=hps.train.eps,
     )
