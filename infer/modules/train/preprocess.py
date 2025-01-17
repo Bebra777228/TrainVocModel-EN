@@ -115,7 +115,7 @@ class PreProcess:
                         break
             printt(f"{path}\t-> Success")
         except Exception as e:
-            printt(f"{path}\t-> {traceback.format_exc()}")
+            raise RuntimeError(f"{path}\t-> {traceback.format_exc()}")
 
     def pipeline_mp(self, infos):
         # Обработка списка файлов
@@ -139,8 +139,7 @@ class PreProcess:
             printt("Обработка успешно завершена!")
             printt("\n\n")
         except Exception as e:
-            printt(f"Ошибка! {traceback.format_exc()}")
-            sys.exit(1)
+            raise RuntimeError(f"Ошибка! {traceback.format_exc()}")
 
 
 def preprocess_trainset(input_root, sample_rate, num_processes, exp_dir, percentage, normalize):
