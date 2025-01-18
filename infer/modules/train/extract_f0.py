@@ -32,24 +32,29 @@ def printt(strr):
     f.flush()
 
 
+# Класс для извлечения и обработки F0
 class FeatureInput(object):
     def __init__(self, samplerate=16000, hop_size=160):
-        self.fs = samplerate
-        self.hop = hop_size
-        self.window_size = 5
-        self.f0_bin = 256
-        self.f0_max = 1100.0
-        self.f0_min = 50.0
+        self.fs = samplerate  # Частота дискретизации
+        self.hop = hop_size  # Размер шага (в сэмплах)
+        self.f0_bin = 256  # Количество бинов для F0
+        self.f0_max = 1100.0  # Максимальное значение F0
+        self.f0_min = 50.0  # Минимальное значение F0
+
+        # Преобразование F0 в мел-шкалу
         self.f0_mel_min = 1127 * np.log(1 + self.f0_min / 700)
         self.f0_mel_max = 1127 * np.log(1 + self.f0_max / 700)
 
+    # Метод для вычисления F0
     def compute_f0(self, path, f0_method):
-        x = load_audio(path, self.fs)
-        rmvpe_path = "assets/rmvpe/rmvpe.pt"
+        x = load_audio(path, self.fs)  # Загрузка аудио
+        rmvpe_path = "assets/rmvpe/rmvpe.pt"  # Путь к модели RMVPE
 
+        # Инициализация модели RMVPE
         if not hasattr(self, "model_rmvpe"):
             self.model_rmvpe = RMVPE(rmvpe_path, is_half=is_half, device="cuda")
 
+        # Извлечение F0 в зависимости от метода
         if f0_method == "harvest":
             f0, t = pyworld.harvest(
                 x.astype(np.double),
@@ -63,25 +68,22 @@ class FeatureInput(object):
         elif f0_method == "rmvpe":
             f0 = self.model_rmvpe.infer_from_audio(x, 0.03)
         elif f0_method == "rmvpe+":
-            f0 = self.model_rmvpe.infer_from_audio_modified(x, 0.04, self.f0_min, self.f0_max, self.window_size)
+            f0 = self.model_rmvpe.infer_from_audio_modified(x, 0.04)
 
         return f0
 
+    # Функция для квантования F0
     def coarse_f0(self, f0):
-        f0_mel = 1127 * np.log(1 + f0 / 700)
-        f0_mel[f0_mel > 0] = (f0_mel[f0_mel > 0] - self.f0_mel_min) * (
-            self.f0_bin - 2
-        ) / (self.f0_mel_max - self.f0_mel_min) + 1
+        f0_mel = 1127 * np.log(1 + f0 / 700)  # Преобразование F0 в мел-шкалу
+        f0_mel[f0_mel > 0] = (f0_mel[f0_mel > 0] - self.f0_mel_min) * (self.f0_bin - 2) / (self.f0_mel_max - self.f0_mel_min) + 1
 
         f0_mel[f0_mel <= 1] = 1
         f0_mel[f0_mel > self.f0_bin - 1] = self.f0_bin - 1
-        f0_coarse = np.rint(f0_mel).astype(int)
-        assert f0_coarse.max() <= 255 and f0_coarse.min() >= 1, (
-            f0_coarse.max(),
-            f0_coarse.min(),
-        )
+        f0_coarse = np.rint(f0_mel).astype(int)  # Квантование F0
+        assert f0_coarse.max() <= 255 and f0_coarse.min() >= 1, (f0_coarse.max(), f0_coarse.min())
         return f0_coarse
 
+    # Основная функция для обработки всех путей
     def go(self, paths, f0_method):
         if len(paths) == 0:
             error_message = (
@@ -96,28 +98,21 @@ class FeatureInput(object):
         else:
             printt(f"Фрагментов готовых к обработке - {len(paths)}")
             printt(f"Извлечение тона методом '{f0_method}'...")
-            n = max(len(paths) // 5, 1)
+            n = max(len(paths) // 5, 1)  # Определяем шаг для вывода прогресса
             for idx, (inp_path, opt_path1, opt_path2) in enumerate(paths):
                 try:
                     if idx % n == 0:
-                        printt(f"{idx}/{len(paths)}")
+                        printt(f"{idx}/{len(paths)}")  # Вывод прогресса
+                    # Пропускаем, если файлы уже существуют
                     if (
                         os.path.exists(opt_path1 + ".npy") == True
                         and os.path.exists(opt_path2 + ".npy") == True
                     ):
                         continue
-                    featur_pit = self.compute_f0(inp_path, f0_method)
-                    np.save(
-                        opt_path2,
-                        featur_pit,
-                        allow_pickle=False,
-                    )
-                    coarse_pit = self.coarse_f0(featur_pit)
-                    np.save(
-                        opt_path1,
-                        coarse_pit,
-                        allow_pickle=False,
-                    )
+                    featur_pit = self.compute_f0(inp_path, f0_method)  # Извлечение F0
+                    np.save(opt_path2, featur_pit, allow_pickle=False)  # Сохранение F0
+                    coarse_pit = self.coarse_f0(featur_pit)  # Квантование F0
+                    np.save(opt_path1, coarse_pit, allow_pickle=False)  # Сохранение квантованного F0
                 except:
                     printt(f"Ошибка извлечения тона!\nФрагмент - {idx}\nФайл - {inp_path}\n{traceback.format_exc()}")
 
@@ -125,12 +120,15 @@ class FeatureInput(object):
 if __name__ == "__main__":
     featureInput = FeatureInput()
     paths = []
-    inp_root = f"{exp_dir}/1_16k_wavs"
-    opt_root1 = f"{exp_dir}/2a_f0"
-    opt_root2 = f"{exp_dir}/2b-f0nsf"
+    inp_root = f"{exp_dir}/1_16k_wavs"  # Директория с входными аудиофайлами
+    opt_root1 = f"{exp_dir}/2a_f0"  # Директория для сохранения квантованного F0
+    opt_root2 = f"{exp_dir}/2b-f0nsf"  # Директория для сохранения F0
 
+    # Создаем директории, если они не существуют
     os.makedirs(opt_root1, exist_ok=True)
     os.makedirs(opt_root2, exist_ok=True)
+
+    # Собираем пути к файлам
     for name in sorted(list(os.listdir(inp_root))):
         inp_path = f"{inp_root}/{name}"
         if "spec" in inp_path:
@@ -139,8 +137,8 @@ if __name__ == "__main__":
         opt_path2 = f"{opt_root2}/{name}"
         paths.append([inp_path, opt_path1, opt_path2])
     try:
-        featureInput.go(paths[i_part::n_part], f0_method)
+        featureInput.go(paths[i_part::n_part], f0_method)  # Обработка файлов
+        printt("Тон извлечен!")
+        printt("\n\n")
     except:
         printt(f"Ошибка извлечения тона!\n{traceback.format_exc()}")
-    printt("Тон извлечен!")
-    printt("\n\n")
