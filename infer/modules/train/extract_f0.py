@@ -68,7 +68,7 @@ class FeatureInput(object):
         elif f0_method == "rmvpe":
             f0 = self.model_rmvpe.infer_from_audio(x, 0.03)
         elif f0_method == "rmvpe+":
-            f0 = self.model_rmvpe.infer_from_audio_modified(x, 0.04)
+            f0 = self.model_rmvpe.infer_from_audio_modified(x, 0.02)
 
         return f0
 
