@@ -34,7 +34,7 @@ def printt(strr):
 
 
 model_path = "assets/hubert/pytorch_model.bin"
-
+config_path = "assets/hubert/config.json"
 wavPath = f"{exp_dir}/1_16k_wavs"
 outPath = (
     f"{exp_dir}/3_feature256"
@@ -57,9 +57,9 @@ def readwave(wav_path, normalize=False):
     feats = feats.view(1, -1)
     return feats
 
-if os.access(model_path, os.F_OK) == False:
+if os.access(model_path, config_path, os.F_OK) == False:
     printt(
-        f"Error: Extracting is shut down because {model_path} does not exist, you may download it from https://huggingface.co/lj1995/VoiceConversionWebUI/tree/main"
+        f"Error: Extracting is shut down because {model_path} and {config_path} does not exist, you may download it from https://huggingface.co/lj1995/VoiceConversionWebUI/tree/main"
     )
     exit(0)
 models, saved_cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task(
