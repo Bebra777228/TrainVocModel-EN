@@ -2,7 +2,7 @@ import os
 import sys
 import traceback
 
-import fairseq
+import transformers
 import numpy as np
 import soundfile as sf
 import torch
@@ -33,7 +33,7 @@ def printt(strr):
     f.flush()
 
 
-model_path = "assets/hubert/hubert_base.pt"
+model_path = "assets/hubert/pytorch_model.bin"
 
 wavPath = f"{exp_dir}/1_16k_wavs"
 outPath = (
