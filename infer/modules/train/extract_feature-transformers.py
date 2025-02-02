@@ -5,6 +5,7 @@ import numpy as np
 import soundfile as sf
 import torch
 import torch.nn.functional as F
+import transformers
 from transformers import HubertModel, HubertConfig
 
 n_part = int(sys.argv[1])
