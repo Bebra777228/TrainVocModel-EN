@@ -33,8 +33,9 @@ def printt(strr):
     f.flush()
 
 
-model_path = "assets/hubert/pytorch_model.bin"  # Path to the HuBERT model in Transformers format
-config_path = "assets/hubert/config.json"
+model_path = "assets/hubert"  # Local directory containing model files
+config_path = os.path.join(model_path, "config.json")  # Path to config.json
+model_file_path = os.path.join(model_path, "pytorch_model.bin")  # Path to pytorch_model.bin
 wavPath = f"{exp_dir}/1_16k_wavs"
 outPath = (
     f"{exp_dir}/3_feature256"
@@ -58,15 +59,16 @@ def readwave(wav_path, normalize=False):
     return feats
 
 
-if not os.path.exists(model_path):
+if not os.path.exists(config_path) or not os.path.exists(model_file_path):
     printt(
-        f"Error: Extracting is shut down because {model_path} does not exist, you may download it from Hugging Face Model Hub."
+        f"Error: Model files not found in {model_path}. "
+        "Please ensure the directory contains 'config.json' and 'pytorch_model.bin'."
     )
     exit(0)
 
 # Load the HuBERT model and feature extractor from Transformers
-config = HubertConfig.from_pretrained(config_path)
-model = HubertModel.from_pretrained(model_path)
+config = HubertConfig.from_pretrained(model_path)
+model = HubertModel.from_pretrained(model_path, config=config)
 model = model.to(device)
 
 if is_half and device not in ["mps", "cpu"]:
