@@ -1,12 +1,11 @@
 import os
 import sys
 import traceback
-
-import transformers
 import numpy as np
 import soundfile as sf
 import torch
 import torch.nn.functional as F
+from transformers import HubertModel, HubertConfig
 
 n_part = int(sys.argv[1])
 i_part = int(sys.argv[2])
@@ -33,7 +32,7 @@ def printt(strr):
     f.flush()
 
 
-model_path = "assets/hubert/pytorch_model.bin"
+model_path = "assets/hubert/pytorch_model.bin"  # Path to the HuBERT model in Transformers format
 config_path = "assets/hubert/config.json"
 wavPath = f"{exp_dir}/1_16k_wavs"
 outPath = (
@@ -57,21 +56,20 @@ def readwave(wav_path, normalize=False):
     feats = feats.view(1, -1)
     return feats
 
-if os.access(model_path, config_path, os.F_OK) == False:
+
+if not os.path.exists(model_path):
     printt(
-        f"Error: Extracting is shut down because {model_path} and {config_path} does not exist, you may download it from https://huggingface.co/lj1995/VoiceConversionWebUI/tree/main"
+        f"Error: Extracting is shut down because {model_path} does not exist, you may download it from Hugging Face Model Hub."
     )
     exit(0)
-models, saved_cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task(
-    [model_path],
-    suffix="",
-)
-model = models[0]
+
+# Load the HuBERT model and feature extractor from Transformers
+config = HubertConfig.from_pretrained(config_path)
+model = HubertModel.from_pretrained(model_path)
 model = model.to(device)
 
-if is_half:
-    if device not in ["mps", "cpu"]:
-        model = model.half()
+if is_half and device not in ["mps", "cpu"]:
+    model = model.half()
 model.eval()
 
 todo = sorted(list(os.listdir(wavPath)))[i_part::n_part]
@@ -98,22 +96,22 @@ else:
                 if os.path.exists(out_path):
                     continue
 
-                feats = readwave(wav_path, normalize=saved_cfg.task.normalize)
-                padding_mask = torch.BoolTensor(feats.shape).fill_(False)
-                inputs = {
-                    "source": (
-                        feats.half().to(device)
-                        if is_half and device not in ["mps", "cpu"]
-                        else feats.to(device)
-                    ),
-                    "padding_mask": padding_mask.to(device),
-                    "output_layer": 9 if version == "v1" else 12,
-                }
+                feats = readwave(wav_path, normalize=True)  # Normalize input
+                inputs = feature_extractor(
+                    feats.squeeze(0).numpy(),
+                    sampling_rate=16000,
+                    return_tensors="pt",
+                ).to(device)
+
+                if is_half and device not in ["mps", "cpu"]:
+                    inputs["input_values"] = inputs["input_values"].half()
+
                 with torch.no_grad():
-                    logits = model.extract_features(**inputs)
-                    feats = (
-                        model.final_proj(logits[0]) if version == "v1" else logits[0]
-                    )
+                    outputs = model(**inputs, output_hidden_states=True)
+                    if version == "v1":
+                        feats = outputs.hidden_states[9]  # Use the 9th layer for v1
+                    else:
+                        feats = outputs.last_hidden_state  # Use the last layer for others
 
                 feats = feats.squeeze(0).float().cpu().numpy()
                 if np.isnan(feats).sum() == 0:
