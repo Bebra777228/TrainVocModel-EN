@@ -68,6 +68,7 @@ if not os.path.exists(config_path) or not os.path.exists(model_file_path):
 
 # Load the HuBERT model and feature extractor from Transformers
 config = HubertConfig.from_pretrained(model_path)
+feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(model_path)
 model = HubertModel.from_pretrained(model_path, config=config)
 model = model.to(device)
 
