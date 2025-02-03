@@ -4,6 +4,7 @@ import traceback
 import numpy as np
 import soundfile as sf
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import transformers
 from transformers import HubertModel, HubertConfig, Wav2Vec2FeatureExtractor
