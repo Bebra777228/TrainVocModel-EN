@@ -6,7 +6,7 @@ import soundfile as sf
 import torch
 import torch.nn.functional as F
 import transformers
-from transformers import HubertModel, HubertConfig, Wav2Vec2FeatureExtractor
+from transformers import HubertModel, HubertConfig
 
 n_part = int(sys.argv[1])
 i_part = int(sys.argv[2])
@@ -68,7 +68,6 @@ if not os.path.exists(config_path) or not os.path.exists(model_file_path):
 
 # Load the HuBERT model and feature extractor from Transformers
 config = HubertConfig.from_pretrained(model_path)
-feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(model_path)
 model = HubertModel.from_pretrained(model_path, config=config)
 model = model.to(device)
 
@@ -101,7 +100,7 @@ else:
                     continue
 
                 feats = readwave(wav_path, normalize=True)  # Normalize input
-                inputs = feature_extractor(
+                inputs = FeatureInput(
                     feats.squeeze(0).numpy(),
                     sampling_rate=16000,
                     return_tensors="pt",
