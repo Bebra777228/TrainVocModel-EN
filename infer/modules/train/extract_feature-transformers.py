@@ -6,7 +6,7 @@ import soundfile as sf
 import torch
 import torch.nn.functional as F
 import transformers
-from transformers import HubertModel, HubertConfig
+from transformers import HubertModel, HubertConfig Wav2Vec2FeatureExtractor
 
 n_part = int(sys.argv[1])
 i_part = int(sys.argv[2])
