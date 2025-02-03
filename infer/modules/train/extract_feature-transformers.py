@@ -66,11 +66,18 @@ if not os.path.exists(config_path) or not os.path.exists(model_file_path):
         "Please ensure the directory contains 'config.json' and 'pytorch_model.bin'."
     )
     exit(0)
+class HubertModelWithFinalProj(HubertModel):
+    def __init__(self, config):
+        super().__init__(config)
 
+        # The final projection layer is only used for backward compatibility.
+        # Following https://github.com/auspicious3000/contentvec/issues/6
+        # Remove this layer is necessary to achieve the desired outcome.
+        self.final_proj = nn.Linear(config.hidden_size, config.classifier_proj_size)
 # Load the HuBERT model and feature extractor from Transformers
 config = HubertConfig.from_pretrained(model_path)
 feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(model_path)
-model = HubertModelWithFinalProj.from_pretrained(model_path, config=config)
+model = HubertModelWithFinalProj.from_pretrained(model_path)
 model = model.to(device)
 
 if is_half and device not in ["mps", "cpu"]:
