@@ -78,7 +78,13 @@ class HubertModelWithFinalProj(HubertModel):
 # Load the HuBERT model and feature extractor from Transformers
 config = HubertConfig.from_pretrained(model_path)
 feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(model_path)
-model = HubertModelWithFinalProj.from_pretrained(model_path)
+# Determine which model to load based on the configuration
+if hasattr(config, "architectures": [
+    "HubertModelWithFinalProj"
+]):
+    model = HubertModelWithFinalProj.from_pretrained(model_path)
+else:
+    model = HubertModel.from_pretrained(model_path)
 model = model.to(device)
 
 if is_half and device not in ["mps", "cpu"]:
