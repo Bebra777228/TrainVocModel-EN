@@ -441,194 +441,469 @@ class SineGen(torch.nn.Module):
         return sine_waves, uv, noise
 
 
-class SourceModuleHnNSF(torch.nn.Module):
-    """SourceModule for hn-nsf
-    SourceModule(sampling_rate, harmonic_num=0, sine_amp=0.1,
-                 add_noise_std=0.003, voiced_threshod=0)
-    sampling_rate: sampling_rate in Hz
-    harmonic_num: number of harmonic above F0 (default: 0)
-    sine_amp: amplitude of sine source signal (default: 0.1)
-    add_noise_std: std of additive Gaussian noise (default: 0.003)
-        note that amplitude of noise in unvoiced is decided
-        by sine_amp
-    voiced_threshold: threhold to set U/V given F0 (default: 0)
-    Sine_source, noise_source = SourceModuleHnNSF(F0_sampled)
-    F0_sampled (batchsize, length, 1)
-    Sine_source (batchsize, length, 1)
-    noise_source (batchsize, length 1)
-    uv (batchsize, length, 1)
+class ResBlock(nn.Module):
+    """
+    Residual block with multiple dilated convolutions.
+
+    This block applies a sequence of dilated convolutional layers with Leaky ReLU activation.
+    It's designed to capture information at different scales due to the varying dilation rates.
+
+    Args:
+        in_channels (int): Number of input channels.
+        out_channels (int): Number of output channels.
+        kernel_size (int, optional): Kernel size for the convolutional layers. Defaults to 7.
+        dilation (tuple[int], optional): Tuple of dilation rates for the convolutional layers. Defaults to (1, 3, 5).
+        leaky_relu_slope (float, optional): Slope for the Leaky ReLU activation. Defaults to 0.2.
     """
 
     def __init__(
         self,
-        sampling_rate,
-        harmonic_num=0,
-        sine_amp=0.1,
-        add_noise_std=0.003,
-        voiced_threshod=0,
-        is_half=True,
+        *,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int = 7,
+        dilation: tuple[int] = (1, 3, 5),
+        leaky_relu_slope: float = 0.2,
     ):
-        super(SourceModuleHnNSF, self).__init__()
+        super(ResBlock, self).__init__()
 
-        self.sine_amp = sine_amp
-        self.noise_std = add_noise_std
-        self.is_half = is_half
-        # to produce sine waveforms
-        self.l_sin_gen = SineGen(
-            sampling_rate, harmonic_num, sine_amp, add_noise_std, voiced_threshod
-        )
+        self.leaky_relu_slope = leaky_relu_slope
+        self.in_channels = in_channels
+        self.out_channels = out_channels
 
-        # to merge source harmonics into a single excitation
-        self.l_linear = torch.nn.Linear(harmonic_num + 1, 1)
-        self.l_tanh = torch.nn.Tanh()
-        # self.ddtype:int = -1
-
-    def forward(self, x: torch.Tensor, upp: int = 1):
-        # if self.ddtype ==-1:
-        #     self.ddtype = self.l_linear.weight.dtype
-        sine_wavs, uv, _ = self.l_sin_gen(x, upp)
-        # print(x.dtype,sine_wavs.dtype,self.l_linear.weight.dtype)
-        # if self.is_half:
-        #     sine_wavs = sine_wavs.half()
-        # sine_merge = self.l_tanh(self.l_linear(sine_wavs.to(x)))
-        # print(sine_wavs.dtype,self.ddtype)
-        # if sine_wavs.dtype != self.l_linear.weight.dtype:
-        sine_wavs = sine_wavs.to(dtype=self.l_linear.weight.dtype)
-        sine_merge = self.l_tanh(self.l_linear(sine_wavs))
-        return sine_merge, None, None  # noise, uv
-
-
-class GeneratorNSF(torch.nn.Module):
-    def __init__(
-        self,
-        initial_channel,
-        resblock,
-        resblock_kernel_sizes,
-        resblock_dilation_sizes,
-        upsample_rates,
-        upsample_initial_channel,
-        upsample_kernel_sizes,
-        gin_channels,
-        sr,
-        is_half=False,
-    ):
-        super(GeneratorNSF, self).__init__()
-        self.num_kernels = len(resblock_kernel_sizes)
-        self.num_upsamples = len(upsample_rates)
-
-        self.f0_upsamp = torch.nn.Upsample(scale_factor=math.prod(upsample_rates))
-        self.m_source = SourceModuleHnNSF(
-            sampling_rate=sr, harmonic_num=0, is_half=is_half
-        )
-        self.noise_convs = nn.ModuleList()
-        self.conv_pre = Conv1d(
-            initial_channel, upsample_initial_channel, 7, 1, padding=3
-        )
-        resblock = modules.ResBlock1 if resblock == "1" else modules.ResBlock2
-
-        self.ups = nn.ModuleList()
-        for i, (u, k) in enumerate(zip(upsample_rates, upsample_kernel_sizes)):
-            c_cur = upsample_initial_channel // (2 ** (i + 1))
-            self.ups.append(
+        self.convs1 = nn.ModuleList(
+            [
                 weight_norm(
-                    ConvTranspose1d(
-                        upsample_initial_channel // (2**i),
-                        upsample_initial_channel // (2 ** (i + 1)),
-                        k,
-                        u,
-                        padding=(k - u) // 2,
+                    nn.Conv1d(
+                        in_channels=in_channels if idx == 0 else out_channels,
+                        out_channels=out_channels,
+                        kernel_size=kernel_size,
+                        stride=1,
+                        dilation=d,
+                        padding=get_padding(kernel_size, d),
                     )
                 )
-            )
-            if i + 1 < len(upsample_rates):
-                stride_f0 = math.prod(upsample_rates[i + 1 :])
-                self.noise_convs.append(
-                    Conv1d(
-                        1,
-                        c_cur,
-                        kernel_size=stride_f0 * 2,
-                        stride=stride_f0,
-                        padding=stride_f0 // 2,
+                for idx, d in enumerate(dilation)
+            ]
+        )
+        self.convs1.apply(self.init_weights)
+
+        self.convs2 = nn.ModuleList(
+            [
+                weight_norm(
+                    nn.Conv1d(
+                        in_channels=out_channels,
+                        out_channels=out_channels,
+                        kernel_size=kernel_size,
+                        stride=1,
+                        dilation=d,
+                        padding=get_padding(kernel_size, d),
                     )
                 )
+                for idx, d in enumerate(dilation)
+            ]
+        )
+        self.convs2.apply(self.init_weights)
+
+    def forward(self, x: torch.Tensor):
+        for idx, (c1, c2) in enumerate(zip(self.convs1, self.convs2)):
+            # new tensor
+            xt = F.leaky_relu(x, self.leaky_relu_slope)
+            xt = c1(xt)
+            # in-place call
+            xt = F.leaky_relu_(xt, self.leaky_relu_slope)
+            xt = c2(xt)
+
+            if idx != 0 or self.in_channels == self.out_channels:
+                x = xt + x
             else:
-                self.noise_convs.append(Conv1d(1, c_cur, kernel_size=1))
+                x = xt
 
-        self.resblocks = nn.ModuleList()
-        for i in range(len(self.ups)):
-            ch = upsample_initial_channel // (2 ** (i + 1))
-            for j, (k, d) in enumerate(
-                zip(resblock_kernel_sizes, resblock_dilation_sizes)
-            ):
-                self.resblocks.append(resblock(ch, k, d))
-
-        self.conv_post = Conv1d(ch, 1, 7, 1, padding=3, bias=False)
-        self.ups.apply(init_weights)
-
-        if gin_channels != 0:
-            self.cond = nn.Conv1d(gin_channels, upsample_initial_channel, 1)
-
-        self.upp = math.prod(upsample_rates)
-
-        self.lrelu_slope = modules.LRELU_SLOPE
-
-    def forward(self, x, f0, g: Optional[torch.Tensor] = None):
-        har_source, noi_source, uv = self.m_source(f0, self.upp)
-        har_source = har_source.transpose(1, 2)
-        x = self.conv_pre(x)
-        if g is not None:
-            x = x + self.cond(g)
-        # torch.jit.script() does not support direct indexing of torch modules
-        # That's why I wrote this
-        for i, (ups, noise_convs) in enumerate(zip(self.ups, self.noise_convs)):
-            if i < self.num_upsamples:
-                x = F.leaky_relu(x, self.lrelu_slope)
-                x = ups(x)
-                x_source = noise_convs(har_source)
-                x = x + x_source
-                xs: Optional[torch.Tensor] = None
-                l = [i * self.num_kernels + j for j in range(self.num_kernels)]
-                for j, resblock in enumerate(self.resblocks):
-                    if j in l:
-                        if xs is None:
-                            xs = resblock(x)
-                        else:
-                            xs += resblock(x)
-                # This assertion cannot be ignored! \
-                # If ignored, it will cause torch.jit.script() compilation errors
-                assert isinstance(xs, torch.Tensor)
-                x = xs / self.num_kernels
-        x = F.leaky_relu(x)
-        x = self.conv_post(x)
-        x = torch.tanh(x)
         return x
 
-    def remove_weight_norm(self):
-        for l in self.ups:
-            remove_weight_norm(l)
-        for l in self.resblocks:
-            l.remove_weight_norm()
+    def remove_parametrizations(self):
+        for c1, c2 in zip(self.convs1, self.convs2):
+            remove_parametrizations(c1)
+            remove_parametrizations(c2)
 
-    def __prepare_scriptable__(self):
-        for l in self.ups:
-            for hook in l._forward_pre_hooks.values():
-                # The hook we want to remove is an instance of WeightNorm class, so
-                # normally we would do `if isinstance(...)` but this class is not accessible
-                # because of shadowing, so we check the module name directly.
-                # https://github.com/pytorch/pytorch/blob/be0ca00c5ce260eb5bcec3237357f7a30cc08983/torch/nn/utils/__init__.py#L3
-                if (
-                    hook.__module__ == "torch.nn.utils.weight_norm"
-                    and hook.__class__.__name__ == "WeightNorm"
-                ):
-                    torch.nn.utils.remove_weight_norm(l)
-        for l in self.resblocks:
-            for hook in self.resblocks._forward_pre_hooks.values():
-                if (
-                    hook.__module__ == "torch.nn.utils.weight_norm"
-                    and hook.__class__.__name__ == "WeightNorm"
-                ):
-                    torch.nn.utils.remove_weight_norm(l)
-        return self
+    def init_weights(self, m):
+        if type(m) == nn.Conv1d:
+            m.weight.data.normal_(0, 0.01)
+            m.bias.data.fill_(0.0)
+
+
+class AdaIN(nn.Module):
+    """
+    Adaptive Instance Normalization layer.
+
+    This layer applies a scaling factor to the input based on a learnable weight.
+
+    Args:
+        channels (int): Number of input channels.
+        leaky_relu_slope (float, optional): Slope for the Leaky ReLU activation applied after scaling. Defaults to 0.2.
+    """
+
+    def __init__(
+        self,
+        *,
+        channels: int,
+        leaky_relu_slope: float = 0.2,
+    ):
+        super().__init__()
+
+        self.weight = nn.Parameter(torch.ones(channels))
+        # safe to use in-place as it is used on a new x+gaussian tensor
+        self.activation = nn.LeakyReLU(leaky_relu_slope, inplace=True)
+
+    def forward(self, x: torch.Tensor):
+        gaussian = torch.randn_like(x) * self.weight[None, :, None]
+
+        return self.activation(x + gaussian)
+
+
+class ParallelResBlock(nn.Module):
+    """
+    Parallel residual block that applies multiple residual blocks with different kernel sizes in parallel.
+
+    Args:
+        in_channels (int): Number of input channels.
+        out_channels (int): Number of output channels.
+        kernel_sizes (tuple[int], optional): Tuple of kernel sizes for the parallel residual blocks. Defaults to (3, 7, 11).
+        dilation (tuple[int], optional): Tuple of dilation rates for the convolutional layers within the residual blocks. Defaults to (1, 3, 5).
+        leaky_relu_slope (float, optional): Slope for the Leaky ReLU activation. Defaults to 0.2.
+    """
+
+    def __init__(
+        self,
+        *,
+        in_channels: int,
+        out_channels: int,
+        kernel_sizes: tuple[int] = (3, 7, 11),
+        dilation: tuple[int] = (1, 3, 5),
+        leaky_relu_slope: float = 0.2,
+    ):
+        super().__init__()
+
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+
+        self.input_conv = nn.Conv1d(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=7,
+            stride=1,
+            padding=3,
+        )
+
+        self.blocks = nn.ModuleList(
+            [
+                nn.Sequential(
+                    AdaIN(channels=out_channels),
+                    ResBlock(
+                        in_channels=out_channels,
+                        out_channels=out_channels,
+                        kernel_size=kernel_size,
+                        dilation=dilation,
+                        leaky_relu_slope=leaky_relu_slope,
+                    ),
+                    AdaIN(channels=out_channels),
+                )
+                for kernel_size in kernel_sizes
+            ]
+        )
+
+    def forward(self, x: torch.Tensor):
+        x = self.input_conv(x)
+
+        results = [block(x) for block in self.blocks]
+
+        return torch.mean(torch.stack(results), dim=0)
+
+    def remove_parametrizations(self):
+        for block in self.blocks:
+            block[1].remove_parametrizations()
+
+
+class SineGenerator(nn.Module):
+    """
+    Definition of sine generator
+
+    Generates sine waveforms with optional harmonics and additive noise.
+    Can be used to create harmonic noise source for neural vocoders.
+
+    Args:
+        samp_rate (int): Sampling rate in Hz.
+        harmonic_num (int): Number of harmonic overtones (default 0).
+        sine_amp (float): Amplitude of sine-waveform (default 0.1).
+        noise_std (float): Standard deviation of Gaussian noise (default 0.003).
+        voiced_threshold (float): F0 threshold for voiced/unvoiced classification (default 0).
+    """
+
+    def __init__(
+        self,
+        samp_rate,
+        harmonic_num=0,
+        sine_amp=0.1,
+        noise_std=0.003,
+        voiced_threshold=0,
+    ):
+        super(SineGenerator, self).__init__()
+        self.sine_amp = sine_amp
+        self.noise_std = noise_std
+        self.harmonic_num = harmonic_num
+        self.dim = self.harmonic_num + 1
+        self.sampling_rate = samp_rate
+        self.voiced_threshold = voiced_threshold
+
+        self.merge = nn.Sequential(
+            nn.Linear(self.dim, 1, bias=False),
+            nn.Tanh(),
+        )
+
+    def _f02uv(self, f0):
+        # generate uv signal
+        uv = torch.ones_like(f0)
+        uv = uv * (f0 > self.voiced_threshold)
+        return uv
+
+    def _f02sine(self, f0_values):
+        """f0_values: (batchsize, length, dim)
+        where dim indicates fundamental tone and overtones
+        """
+        # convert to F0 in rad. The integer part n can be ignored
+        # because 2 * np.pi * n doesn't affect phase
+        rad_values = (f0_values / self.sampling_rate) % 1
+
+        # initial phase noise (no noise for fundamental component)
+        rand_ini = torch.rand(
+            f0_values.shape[0], f0_values.shape[2], device=f0_values.device
+        )
+        rand_ini[:, 0] = 0
+        rad_values[:, 0, :] = rad_values[:, 0, :] + rand_ini
+
+        # instantanouse phase sine[t] = sin(2*pi \sum_i=1 ^{t} rad)
+        tmp_over_one = torch.cumsum(rad_values, 1) % 1
+        tmp_over_one_idx = (tmp_over_one[:, 1:, :] - tmp_over_one[:, :-1, :]) < 0
+        cumsum_shift = torch.zeros_like(rad_values)
+        cumsum_shift[:, 1:, :] = tmp_over_one_idx * -1.0
+
+        sines = torch.sin(torch.cumsum(rad_values + cumsum_shift, dim=1) * 2 * np.pi)
+
+        return sines
+
+    def forward(self, f0):
+        with torch.no_grad():
+            f0_buf = torch.zeros(f0.shape[0], f0.shape[1], self.dim, device=f0.device)
+            # fundamental component
+            f0_buf[:, :, 0] = f0[:, :, 0]
+            for idx in np.arange(self.harmonic_num):
+                f0_buf[:, :, idx + 1] = f0_buf[:, :, 0] * (idx + 2)
+
+            sine_waves = self._f02sine(f0_buf) * self.sine_amp
+
+            uv = self._f02uv(f0)
+
+            noise_amp = uv * self.noise_std + (1 - uv) * self.sine_amp / 3
+            noise = noise_amp * torch.randn_like(sine_waves)
+
+            sine_waves = sine_waves * uv + noise
+        # correct DC offset
+        sine_waves = sine_waves - sine_waves.mean(dim=1, keepdim=True)
+        # merge with grad
+        return self.merge(sine_waves)
+
+
+class RefineGANGenerator(nn.Module):
+    """
+    RefineGAN generator for audio synthesis.
+
+    This generator uses a combination of downsampling, residual blocks, and parallel residual blocks
+    to refine an input mel-spectrogram and fundamental frequency (F0) into an audio waveform.
+    It can also incorporate global conditioning.
+
+    Args:
+        sample_rate (int, optional): Sampling rate of the audio. Defaults to 44100.
+        downsample_rates (tuple[int], optional): Downsampling rates for the downsampling blocks. Defaults to (2, 2, 8, 8).
+        upsample_rates (tuple[int], optional): Upsampling rates for the upsampling blocks. Defaults to (8, 8, 2, 2).
+        leaky_relu_slope (float, optional): Slope for the Leaky ReLU activation. Defaults to 0.2.
+        num_mels (int, optional): Number of mel-frequency bins in the input mel-spectrogram. Defaults to 128.
+        start_channels (int, optional): Number of channels in the initial convolutional layer. Defaults to 16.
+        gin_channels (int, optional): Number of channels for the global conditioning input. Defaults to 256.
+        checkpointing (bool, optional): Whether to use checkpointing for memory efficiency. Defaults to False.
+    """
+
+    def __init__(
+        self,
+        *,
+        sample_rate: int = 44100,
+        downsample_rates: tuple[int] = (2, 2, 8, 8),
+        upsample_rates: tuple[int] = (8, 8, 2, 2),
+        leaky_relu_slope: float = 0.2,
+        num_mels: int = 128,
+        start_channels: int = 16,
+        gin_channels: int = 256,
+        checkpointing: bool = False,
+        upsample_initial_channel=512,
+    ):
+        super().__init__()
+
+        self.upsample_rates = upsample_rates
+        self.leaky_relu_slope = leaky_relu_slope
+        self.checkpointing = checkpointing
+
+        self.upp = np.prod(upsample_rates)
+        self.m_source = SineGenerator(sample_rate)
+
+        # expanded f0 sinegen -> match mel_conv
+        self.pre_conv = weight_norm(
+            nn.Conv1d(
+                in_channels=1,
+                out_channels=upsample_initial_channel // 2,
+                kernel_size=7,
+                stride=1,
+                padding=3,
+                bias=False,
+            )
+        )
+
+        stride_f0s = [
+            math.prod(upsample_rates[i + 1 :]) if i + 1 < len(upsample_rates) else 1
+            for i in range(len(upsample_rates))
+        ]
+
+        channels = upsample_initial_channel
+
+        self.downsample_blocks = nn.ModuleList([])
+        for i, u in enumerate(upsample_rates):
+            # handling odd upsampling rates
+            stride = stride_f0s[i]
+            kernel = 1 if stride == 1 else stride * 2 - stride % 2
+            padding = 0 if stride == 1 else (kernel - stride) // 2
+
+            # f0 input gets upscaled to full segment size, then downscaled back to match each upscale step
+
+            self.downsample_blocks.append(
+                nn.Conv1d(
+                    in_channels=1,
+                    out_channels=channels // 2 ** (i + 2),
+                    kernel_size=kernel,
+                    stride=stride,
+                    padding=padding,
+                )
+            )
+
+        self.mel_conv = weight_norm(
+            nn.Conv1d(
+                in_channels=num_mels,
+                out_channels=channels // 2,
+                kernel_size=7,
+                stride=1,
+                padding=3,
+            )
+        )
+
+        if gin_channels != 0:
+            self.cond = nn.Conv1d(256, channels // 2, 1)
+
+        self.upsample_blocks = nn.ModuleList([])
+        self.upsample_conv_blocks = nn.ModuleList([])
+        self.filters = nn.ModuleList([])
+
+        for rate in upsample_rates:
+            new_channels = channels // 2
+
+            self.upsample_blocks.append(nn.Upsample(scale_factor=rate, mode="linear"))
+
+            low_pass = nn.Conv1d(
+                channels,
+                channels,
+                kernel_size=15,
+                padding=7,
+                groups=channels,
+                bias=False,
+            )
+
+            low_pass.weight.data.fill_(1.0 / 15)
+
+            self.filters.append(low_pass)
+
+            self.upsample_conv_blocks.append(
+                ParallelResBlock(
+                    in_channels=channels + channels // 4,
+                    out_channels=new_channels,
+                    kernel_sizes=(3, 7, 11),
+                    dilation=(1, 3, 5),
+                    leaky_relu_slope=leaky_relu_slope,
+                )
+            )
+
+            channels = new_channels
+
+        self.conv_post = weight_norm(
+            nn.Conv1d(
+                in_channels=channels,
+                out_channels=1,
+                kernel_size=7,
+                stride=1,
+                padding=3,
+            )
+        )
+
+    def forward(self, mel: torch.Tensor, f0: torch.Tensor, g: torch.Tensor = None):
+
+        f0 = F.interpolate(
+            f0.unsqueeze(1), size=mel.shape[-1] * self.upp, mode="linear"
+        )
+        har_source = self.m_source(f0.transpose(1, 2)).transpose(1, 2)
+
+        x = self.pre_conv(har_source)
+        x = F.interpolate(x, size=mel.shape[-1], mode="linear")
+        # expanding spectrogram from 192 to 256 channels
+        mel = self.mel_conv(mel)
+
+        if g is not None:
+            # adding expanded speaker embedding
+            mel += self.cond(g)
+        x = torch.cat([mel, x], dim=1)
+
+        for ups, res, down, flt in zip(
+            self.upsample_blocks,
+            self.upsample_conv_blocks,
+            self.downsample_blocks,
+            self.filters,
+        ):
+            # in-place call
+            x = F.leaky_relu_(x, self.leaky_relu_slope)
+
+            if self.training and self.checkpointing:
+                x = checkpoint(ups, x, use_reentrant=False)
+                x = checkpoint(flt, x, use_reentrant=False)
+                x = torch.cat([x, down(har_source)], dim=1)
+                x = checkpoint(res, x, use_reentrant=False)
+            else:
+                x = ups(x)
+                x = flt(x)
+                x = torch.cat([x, down(har_source)], dim=1)
+                x = res(x)
+
+        # in-place call
+        x = F.leaky_relu_(x, self.leaky_relu_slope)
+        x = self.conv_post(x)
+        # in-place call
+        x = torch.tanh_(x)
+
+        return x
+
+    def remove_parametrizations(self):
+        remove_parametrizations(self.source_conv)
+        remove_parametrizations(self.mel_conv)
+        remove_parametrizations(self.conv_post)
+
+        for block in self.downsample_blocks:
+            block[1].remove_parametrizations()
+
+        for block in self.upsample_conv_blocks:
+            block.remove_parametrizations()
 
 
 sr2sr = {
@@ -860,7 +1135,7 @@ class SynthesizerTrnMs768NSFsid(nn.Module):
             kernel_size,
             float(p_dropout),
         )
-        self.dec = GeneratorNSF(
+        self.dec = RefineGANGenerator(
             inter_channels,
             resblock,
             resblock_kernel_sizes,
