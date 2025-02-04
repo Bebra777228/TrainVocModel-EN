@@ -27,6 +27,7 @@ version_config_list = [
     "v1/48k.json",
     "v2/48k.json",
     "v2/32k.json",
+    "v2/44k.json",
 ]
 
 
