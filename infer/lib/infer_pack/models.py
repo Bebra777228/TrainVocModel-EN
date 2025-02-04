@@ -735,7 +735,7 @@ class RefineGANGenerator(nn.Module):
     def __init__(
         self,
         *,
-        sample_rate: int = 44100,
+        sr,
         downsample_rates: tuple[int] = (2, 2, 8, 8),
         upsample_rates: tuple[int] = (8, 8, 2, 2),
         leaky_relu_slope: float = 0.2,
@@ -909,6 +909,7 @@ class RefineGANGenerator(nn.Module):
 sr2sr = {
     "32k": 32000,
     "40k": 40000,
+    "44k": 44100,
     "48k": 48000,
 }
 
