@@ -72,7 +72,7 @@ if not os.path.exists(config_path) or not os.path.exists(model_file_path):
 config = HubertConfig.from_pretrained(model_path)
 feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(model_path)
 # Determine which model to load based on the configuration
-if "HubertModelWithFinalProj" in config.json:
+if "HubertModelWithFinalProj" in config.architectures:
     
     model = HubertModelWithFinalProj.from_pretrained(model_path)
 else:
