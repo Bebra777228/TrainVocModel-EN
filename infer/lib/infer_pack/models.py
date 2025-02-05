@@ -830,6 +830,7 @@ class SynthesizerTrnMs768NSFsid(nn.Module):
         upsample_initial_channel,
         upsample_kernel_sizes,
         spk_embed_dim,
+        vocoder
         gin_channels,
         sr,
         **kwargs
@@ -864,12 +865,25 @@ class SynthesizerTrnMs768NSFsid(nn.Module):
             kernel_size,
             float(p_dropout),
         )
-        self.dec = RefineGANGenerator(
-            sample_rate=sr,
-            downsample_rates=upsample_rates[::-1],
-            upsample_rates=upsample_rates,
-            start_channels=16,
-            num_mels=inter_channels,
+        if vocoder == "MRF HiFi-GAN":
+           self.dec = HiFiGANMRFGenerator(
+           in_channel=inter_channels,
+           upsample_initial_channel=upsample_initial_channel,
+           upsample_rates=upsample_rates,
+           upsample_kernel_sizes=upsample_kernel_sizes,
+           resblock_kernel_sizes=resblock_kernel_sizes,
+           resblock_dilations=resblock_dilation_sizes,
+           gin_channels=gin_channels,
+           sample_rate=sr,
+           harmonic_num=8,
+        )
+         elif vocoder == "RefineGAN":           
+              self.dec = RefineGANGenerator(
+              sample_rate=sr,
+              downsample_rates=upsample_rates[::-1],
+              upsample_rates=upsample_rates,
+              start_channels=16,
+              num_mels=inter_channels,
         )
         self.enc_q = PosteriorEncoder(
             spec_channels,
