@@ -11,7 +11,9 @@ from torch.nn import AvgPool1d, Conv1d, Conv2d, ConvTranspose1d
 from torch.nn import functional as F
 from torch.nn.utils import remove_weight_norm, spectral_norm, weight_norm
 from infer.lib.infer_pack import refinegan
+from infer.lib.infer_pack import hifigan_mrf
 from infer.lib.infer_pack.refinegan import RefineGANGenerator
+from infer.lib.infer_pack.hifigan_mrf import HiFiGANMRFGenerator
 from infer.lib.infer_pack import attentions, commons, modules
 from infer.lib.infer_pack.commons import get_padding, init_weights
 
