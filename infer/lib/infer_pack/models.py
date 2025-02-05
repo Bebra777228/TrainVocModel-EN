@@ -863,9 +863,10 @@ class SynthesizerTrnMs768NSFsid(nn.Module):
         )
         self.dec = RefineGANGenerator(
             sample_rate=sr,
+            downsample_rates=upsample_rates[::-1],
             upsample_rates=upsample_rates,
-            num_mels=inter_channels
-            is_half=kwargs["is_half"],
+            start_channels=16,
+            num_mels=inter_channels,
         )
         self.enc_q = PosteriorEncoder(
             spec_channels,
