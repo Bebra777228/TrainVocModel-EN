@@ -114,7 +114,7 @@ else:
                 if os.path.exists(out_path):
                     continue
 
-                feats = readwave(wav_path, normalize=True)  # Normalize input
+                feats = readwave(wav_path, normalize=False)  # Normalize input
                 inputs = feature_extractor(
                     feats.squeeze(0).numpy(),
                     sampling_rate=16000,
