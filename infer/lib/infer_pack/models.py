@@ -862,7 +862,6 @@ class SynthesizerTrnMs768NSFsid(nn.Module):
             float(p_dropout),
         )
         self.dec = RefineGANGenerator(
-
             sample_rate=sr,
             upsample_rates=upsample_rates,
             num_mels=inter_channels
