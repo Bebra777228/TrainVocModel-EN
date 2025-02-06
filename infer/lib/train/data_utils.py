@@ -26,6 +26,7 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
         self.filter_length = hparams.filter_length
         self.hop_length = hparams.hop_length
         self.win_length = hparams.win_length
+        self.sample_rate = hparams.sample_rate
         self.min_text_len = getattr(hparams, "min_text_len", 1)
         self.max_text_len = getattr(hparams, "max_text_len", 5000)
         self._filter()
