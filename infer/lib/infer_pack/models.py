@@ -11,9 +11,7 @@ from torch.nn import AvgPool1d, Conv1d, Conv2d, ConvTranspose1d
 from torch.nn import functional as F
 from torch.nn.utils import remove_weight_norm, spectral_norm, weight_norm
 from infer.lib.infer_pack import refinegan
-from infer.lib.infer_pack import hifigan_mrf
 from infer.lib.infer_pack.refinegan import RefineGANGenerator
-from infer.lib.infer_pack.hifigan_mrf import HiFiGANMRFGenerator
 from infer.lib.infer_pack import attentions, commons, modules
 from infer.lib.infer_pack.commons import get_padding, init_weights
 
@@ -865,25 +863,12 @@ class SynthesizerTrnMs768NSFsid(nn.Module):
             kernel_size,
             float(p_dropout),
         )
-        if vocoder == "MRF HiFi-GAN":
-           self.dec = HiFiGANMRFGenerator(
-           in_channel=inter_channels,
-           upsample_initial_channel=upsample_initial_channel,
-           upsample_rates=upsample_rates,
-           upsample_kernel_sizes=upsample_kernel_sizes,
-           resblock_kernel_sizes=resblock_kernel_sizes,
-           resblock_dilations=resblock_dilation_sizes,
-           gin_channels=gin_channels,
-           sample_rate=sr,
-           harmonic_num=8,
-        )
-         elif vocoder == "RefineGAN":           
-              self.dec = RefineGANGenerator(
-              sample_rate=sr,
-              downsample_rates=upsample_rates[::-1],
-              upsample_rates=upsample_rates,
-              start_channels=16,
-              num_mels=inter_channels,
+        self.dec = RefineGANGenerator(
+            sample_rate=sr,
+            downsample_rates=upsample_rates[::-1],
+            upsample_rates=upsample_rates,
+            start_channels=16,
+            num_mels=inter_channels,
         )
         self.enc_q = PosteriorEncoder(
             spec_channels,
