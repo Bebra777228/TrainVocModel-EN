@@ -96,7 +96,7 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
         return phone, pitch, pitchf
 
     def get_audio(self, filename):
-        audio, sampling_rate = load_wav_to_torch(filename)
+        audio, sample_rate = load_wav_to_torch(filename)
         if sample_rate != self.sample_rate:
             raise ValueError(
                 f"{sample_rate} SR doesn't match target {self.sample_rate} SR"
@@ -116,7 +116,7 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
                 spec = spectrogram_torch(
                     audio_norm,
                     self.filter_length,
-                    self.sampling_rate,
+                    self.sample_rate,
                     self.hop_length,
                     self.win_length,
                     center=False,
@@ -127,7 +127,7 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
             spec = spectrogram_torch(
                 audio_norm,
                 self.filter_length,
-                self.sampling_rate,
+                self.sample_rate,
                 self.hop_length,
                 self.win_length,
                 center=False,
@@ -287,7 +287,7 @@ class TextAudioLoader(torch.utils.data.Dataset):
         return phone
 
     def get_audio(self, filename):
-        audio, sampling_rate = load_wav_to_torch(filename)
+        audio, sample_rate = load_wav_to_torch(filename)
         if sample_rate != self.sample_rate:
             raise ValueError(
                 f"{sample_rate} SR doesn't match target {self.sample_rate} SR"
@@ -306,7 +306,7 @@ class TextAudioLoader(torch.utils.data.Dataset):
                 spec = spectrogram_torch(
                     audio_norm,
                     self.filter_length,
-                    self.sampling_rate,
+                    self.sample_rate,
                     self.hop_length,
                     self.win_length,
                     center=False,
@@ -317,7 +317,7 @@ class TextAudioLoader(torch.utils.data.Dataset):
             spec = spectrogram_torch(
                 audio_norm,
                 self.filter_length,
-                self.sampling_rate,
+                self.sample_rate,
                 self.hop_length,
                 self.win_length,
                 center=False,
