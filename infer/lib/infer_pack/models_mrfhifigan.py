@@ -10,7 +10,8 @@ from torch import nn
 from torch.nn import AvgPool1d, Conv1d, Conv2d, ConvTranspose1d
 from torch.nn import functional as F
 from torch.nn.utils import remove_weight_norm, spectral_norm, weight_norm
-
+from infer.lib.infer_pack import hifigan_mrf
+from infer.lib.infer_pack.hifigan_mrf import HiFiGANMRFGenerator
 from infer.lib.infer_pack import attentions, commons, modules
 from infer.lib.infer_pack.commons import get_padding, init_weights
 
@@ -860,17 +861,16 @@ class SynthesizerTrnMs768NSFsid(nn.Module):
             kernel_size,
             float(p_dropout),
         )
-        self.dec = GeneratorNSF(
-            inter_channels,
-            resblock,
-            resblock_kernel_sizes,
-            resblock_dilation_sizes,
-            upsample_rates,
-            upsample_initial_channel,
-            upsample_kernel_sizes,
+        self.dec = HiFiGANMRFGenerator(
+            in_channel=inter_channels,
+            upsample_initial_channel=upsample_initial_channel,
+            upsample_rates=upsample_rates,
+            upsample_kernel_sizes=upsample_kernel_sizes,
+            resblock_kernel_sizes=resblock_kernel_sizes,
+            resblock_dilations=resblock_dilation_sizes,
             gin_channels=gin_channels,
-            sr=sr,
-            is_half=kwargs["is_half"],
+            sample_rate=sr,
+            harmonic_num=8,
         )
         self.enc_q = PosteriorEncoder(
             spec_channels,
