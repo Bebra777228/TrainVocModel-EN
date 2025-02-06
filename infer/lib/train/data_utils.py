@@ -96,11 +96,11 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
         return phone, pitch, pitchf
 
     def get_audio(self, filename):
-        audio, sampling_rate = load_wav_to_torch(filename)
-        if sampling_rate != self.sampling_rate:
+        audio, sample_rate = load_wav_to_torch(filename)
+        if sample_rate != self.sample_rate:
             raise ValueError(
                 "{} SR doesn't match target {} SR".format(
-                    sampling_rate, self.sampling_rate
+                    sample_rate, self.sample_rate
                 )
             )
         audio_norm = audio
