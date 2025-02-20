@@ -7,15 +7,6 @@ from multiprocessing import cpu_count
 
 import torch
 
-try:
-    import intel_extension_for_pytorch as ipex  # pylint: disable=import-error, unused-import
-
-    if torch.xpu.is_available():
-        from infer.modules.ipex import ipex_init
-
-        ipex_init()
-except Exception:  # pylint: disable=broad-exception-caught
-    pass
 import logging
 
 logger = logging.getLogger(__name__)
@@ -45,61 +36,22 @@ class Config:
     def __init__(self):
         self.device = "cuda:0"
         self.is_half = True
-        self.use_jit = False
         self.n_cpu = 0
         self.gpu_name = None
         self.json_config = self.load_config_json()
         self.gpu_mem = None
         self.instead = ""
-        self.preprocess_per = 3.7
         self.x_pad, self.x_query, self.x_center, self.x_max = self.device_config()
 
-    @staticmethod
-    def load_config_json() -> dict:
-        d = {}
+    def load_config_json(self):
+        configs = {}
         for config_file in version_config_list:
-            p = f"configs/inuse/{config_file}"
-            if not os.path.exists(p):
-                shutil.copy(f"configs/{config_file}", p)
-            with open(f"configs/inuse/{config_file}", "r") as f:
-                d[config_file] = json.load(f)
-        return d
-
-    # has_mps is only available in nightly pytorch (for now) and MasOS 12.3+.
-    # check `getattr` and try it for compatibility
-    @staticmethod
-    def has_mps() -> bool:
-        if not torch.backends.mps.is_available():
-            return False
-        try:
-            torch.zeros(1).to(torch.device("mps"))
-            return True
-        except Exception:
-            return False
-
-    @staticmethod
-    def has_xpu() -> bool:
-        if hasattr(torch, "xpu") and torch.xpu.is_available():
-            return True
-        else:
-            return False
-
-    def use_fp32_config(self):
-        for config_file in version_config_list:
-            self.json_config[config_file]["train"]["fp16_run"] = False
-            with open(f"configs/inuse/{config_file}", "r") as f:
-                strr = f.read().replace("true", "false")
-            with open(f"configs/inuse/{config_file}", "w") as f:
-                f.write(strr)
-            logger.info("overwrite " + config_file)
-        self.preprocess_per = 3.0
-        logger.info("overwrite preprocess_per to %d" % (self.preprocess_per))
+            with open(f"configs/{config_file}", "r") as f:
+                configs[config_file] = json.load(f)
+        return configs
 
     def device_config(self) -> tuple:
         if torch.cuda.is_available():
-            if self.has_xpu():
-                self.device = self.instead = "xpu:0"
-                self.is_half = True
             i_device = int(self.device.split(":")[-1])
             self.gpu_name = torch.cuda.get_device_name(i_device)
             if (
@@ -112,7 +64,6 @@ class Config:
             ):
                 logger.info("Found GPU %s, force to fp32", self.gpu_name)
                 self.is_half = False
-                self.use_fp32_config()
             else:
                 logger.info("Found GPU %s", self.gpu_name)
             self.gpu_mem = int(
@@ -122,18 +73,10 @@ class Config:
                 / 1024
                 + 0.4
             )
-            if self.gpu_mem <= 4:
-                self.preprocess_per = 3.0
-        elif self.has_mps():
-            logger.info("No supported Nvidia GPU found")
-            self.device = self.instead = "mps"
-            self.is_half = False
-            self.use_fp32_config()
         else:
             logger.info("No supported Nvidia GPU found")
             self.device = self.instead = "cpu"
             self.is_half = False
-            self.use_fp32_config()
 
         if self.n_cpu == 0:
             self.n_cpu = cpu_count()
@@ -156,4 +99,5 @@ class Config:
             x_query = 5
             x_center = 30
             x_max = 32
+
         return x_pad, x_query, x_center, x_max
