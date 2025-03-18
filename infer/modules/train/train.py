@@ -121,7 +121,6 @@ def main():
 def run(rank, n_gpus, hps, logger: logging.Logger):
     global global_step
     if rank == 0:
-        writer = SummaryWriter(log_dir=hps.model_dir)
         writer_eval = SummaryWriter(log_dir=os.path.join(hps.model_dir, "eval"))
 
     backend = "gloo" if os.name == "nt" or not torch.cuda.is_available() else "nccl"
@@ -290,7 +289,7 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
                 scaler,
                 [train_loader, None],
                 logger,
-                [writer, writer_eval],
+                [writer_eval],
                 cache,
             )
         else:
@@ -318,7 +317,7 @@ def train_and_evaluate(
     optim_g, optim_d = optims
     train_loader, eval_loader = loaders
     if writers is not None:
-        writer, writer_eval = writers
+        writer = writers[0]
 
     train_loader.batch_sampler.set_epoch(epoch)
     global global_step
