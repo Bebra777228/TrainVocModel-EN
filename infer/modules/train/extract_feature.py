@@ -11,8 +11,7 @@ import torch.nn.functional as F
 n_part = int(sys.argv[1])
 i_part = int(sys.argv[2])
 exp_dir = sys.argv[3]
-version = sys.argv[4]
-is_half = sys.argv[5].lower() == "true"
+is_half = sys.argv[4].lower() == "true"
 
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
@@ -36,11 +35,7 @@ def printt(strr):
 model_path = "assets/hubert/hubert_base.pt"
 
 wavPath = f"{exp_dir}/1_16k_wavs"
-outPath = (
-    f"{exp_dir}/3_feature256"
-    if version == "v1"
-    else f"{exp_dir}/3_feature768"
-)
+outPath = f"{exp_dir}/3_feature768"
 os.makedirs(outPath, exist_ok=True)
 
 
@@ -108,13 +103,11 @@ else:
                         else feats.to(device)
                     ),
                     "padding_mask": padding_mask.to(device),
-                    "output_layer": 9 if version == "v1" else 12,
+                    "output_layer": 12,
                 }
                 with torch.no_grad():
                     logits = model.extract_features(**inputs)
-                    feats = (
-                        model.final_proj(logits[0]) if version == "v1" else logits[0]
-                    )
+                    feats = logits[0]
 
                 feats = feats.squeeze(0).float().cpu().numpy()
                 if np.isnan(feats).sum() == 0:

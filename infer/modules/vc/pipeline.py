@@ -195,7 +195,6 @@ class Pipeline(object):
         index,
         big_npy,
         index_rate,
-        version,
         protect,
     ):  # ,file_index,file_big_npy
         feats = torch.from_numpy(audio0)
@@ -212,12 +211,12 @@ class Pipeline(object):
         inputs = {
             "source": feats.to(self.device),
             "padding_mask": padding_mask,
-            "output_layer": 9 if version == "v1" else 12,
+            "output_layer": 12,
         }
         t0 = ttime()
         with torch.no_grad():
             logits = model.extract_features(**inputs)
-            feats = model.final_proj(logits[0]) if version == "v1" else logits[0]
+            feats = logits[0]
         if protect < 0.5 and pitch is not None and pitchf is not None:
             feats0 = feats.clone()
         if (
@@ -295,7 +294,6 @@ class Pipeline(object):
         tgt_sr,
         resample_sr,
         rms_mix_rate,
-        version,
         protect,
         f0_file=None,
     ):
@@ -383,7 +381,6 @@ class Pipeline(object):
                         index,
                         big_npy,
                         index_rate,
-                        version,
                         protect,
                     )[self.t_pad_tgt : -self.t_pad_tgt]
                 )
@@ -400,7 +397,6 @@ class Pipeline(object):
                         index,
                         big_npy,
                         index_rate,
-                        version,
                         protect,
                     )[self.t_pad_tgt : -self.t_pad_tgt]
                 )
@@ -418,7 +414,6 @@ class Pipeline(object):
                     index,
                     big_npy,
                     index_rate,
-                    version,
                     protect,
                 )[self.t_pad_tgt : -self.t_pad_tgt]
             )
@@ -435,7 +430,6 @@ class Pipeline(object):
                     index,
                     big_npy,
                     index_rate,
-                    version,
                     protect,
                 )[self.t_pad_tgt : -self.t_pad_tgt]
             )
