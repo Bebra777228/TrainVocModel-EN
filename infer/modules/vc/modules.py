@@ -10,7 +10,6 @@ from io import BytesIO
 
 from infer.lib.audio import load_audio, wav2
 from infer.lib.infer_pack.models import SynthesizerTrnMs768NSFsid
-from infer.lib.infer_pack.models import SynthesizerTrnMs768NSFsid_nono
 from infer.modules.vc.pipeline import Pipeline
 from infer.modules.vc.utils import *
 
@@ -58,15 +57,8 @@ class VC:
                 ) = None
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
-                ###楼下不这么折腾清理不干净
-                self.if_f0 = self.cpt.get("f0", 1)
                 self.version = self.cpt.get("version", "v2")
-                if self.if_f0 == 1:
-                    self.net_g = SynthesizerTrnMs768NSFsid(
-                        *self.cpt["config"], is_half=self.config.is_half
-                    )
-                else:
-                    self.net_g = SynthesizerTrnMs768NSFsid_nono(*self.cpt["config"])
+                self.net_g = SynthesizerTrnMs768NSFsid(*self.cpt["config"], is_half=self.config.is_half)
                 del self.net_g, self.cpt
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
@@ -91,17 +83,8 @@ class VC:
         self.cpt = torch.load(person, map_location="cpu", weights_only=True)
         self.tgt_sr = self.cpt["config"][-1]
         self.cpt["config"][-3] = self.cpt["weight"]["emb_g.weight"].shape[0]  # n_spk
-        self.if_f0 = self.cpt.get("f0", 1)
         self.version = self.cpt.get("version", "v2")
-
-        synthesizer_class = {
-            ("v2", 1): SynthesizerTrnMs768NSFsid,
-            ("v2", 0): SynthesizerTrnMs768NSFsid_nono,
-        }
-
-        self.net_g = synthesizer_class.get(
-            (self.version, self.if_f0), SynthesizerTrnMs768NSFsid
-        )(*self.cpt["config"], is_half=self.config.is_half)
+        self.net_g = SynthesizerTrnMs768NSFsid(*self.cpt["config"], is_half=self.config.is_half)
 
         del self.net_g.enc_q
 
@@ -182,7 +165,6 @@ class VC:
                 f0_method,
                 file_index,
                 index_rate,
-                self.if_f0,
                 filter_radius,
                 self.tgt_sr,
                 resample_sr,

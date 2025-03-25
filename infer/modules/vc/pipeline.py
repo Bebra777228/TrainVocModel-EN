@@ -289,7 +289,6 @@ class Pipeline(object):
         f0_method,
         file_index,
         index_rate,
-        if_f0,
         filter_radius,
         tgt_sr,
         resample_sr,
@@ -347,92 +346,56 @@ class Pipeline(object):
             except:
                 traceback.print_exc()
         sid = torch.tensor(sid, device=self.device).unsqueeze(0).long()
-        pitch, pitchf = None, None
-        if if_f0 == 1:
-            pitch, pitchf = self.get_f0(
-                input_audio_path,
-                audio_pad,
-                p_len,
-                f0_up_key,
-                f0_method,
-                filter_radius,
-                inp_f0,
-            )
-            pitch = pitch[:p_len]
-            pitchf = pitchf[:p_len]
-            if "mps" not in str(self.device) or "xpu" not in str(self.device):
-                pitchf = pitchf.astype(np.float32)
-            pitch = torch.tensor(pitch, device=self.device).unsqueeze(0).long()
-            pitchf = torch.tensor(pitchf, device=self.device).unsqueeze(0).float()
+        pitch, pitchf = self.get_f0(
+            input_audio_path,
+            audio_pad,
+            p_len,
+            f0_up_key,
+            f0_method,
+            filter_radius,
+            inp_f0,
+        )
+        pitch = pitch[:p_len]
+        pitchf = pitchf[:p_len]
+        if "mps" not in str(self.device) or "xpu" not in str(self.device):
+            pitchf = pitchf.astype(np.float32)
+        pitch = torch.tensor(pitch, device=self.device).unsqueeze(0).long()
+        pitchf = torch.tensor(pitchf, device=self.device).unsqueeze(0).float()
         t2 = ttime()
         times[1] += t2 - t1
         for t in opt_ts:
             t = t // self.window * self.window
-            if if_f0 == 1:
-                audio_opt.append(
-                    self.vc(
-                        model,
-                        net_g,
-                        sid,
-                        audio_pad[s : t + self.t_pad2 + self.window],
-                        pitch[:, s // self.window : (t + self.t_pad2) // self.window],
-                        pitchf[:, s // self.window : (t + self.t_pad2) // self.window],
-                        times,
-                        index,
-                        big_npy,
-                        index_rate,
-                        protect,
-                    )[self.t_pad_tgt : -self.t_pad_tgt]
-                )
-            else:
-                audio_opt.append(
-                    self.vc(
-                        model,
-                        net_g,
-                        sid,
-                        audio_pad[s : t + self.t_pad2 + self.window],
-                        None,
-                        None,
-                        times,
-                        index,
-                        big_npy,
-                        index_rate,
-                        protect,
-                    )[self.t_pad_tgt : -self.t_pad_tgt]
-                )
+            audio_opt.append(
+                self.vc(
+                    model,
+                    net_g,
+                    sid,
+                    audio_pad[s : t + self.t_pad2 + self.window],
+                    pitch[:, s // self.window : (t + self.t_pad2) // self.window],
+                    pitchf[:, s // self.window : (t + self.t_pad2) // self.window],
+                    times,
+                    index,
+                    big_npy,
+                    index_rate,
+                    protect,
+                )[self.t_pad_tgt : -self.t_pad_tgt]
+            )
             s = t
-        if if_f0 == 1:
-            audio_opt.append(
-                self.vc(
-                    model,
-                    net_g,
-                    sid,
-                    audio_pad[t:],
-                    pitch[:, t // self.window :] if t is not None else pitch,
-                    pitchf[:, t // self.window :] if t is not None else pitchf,
-                    times,
-                    index,
-                    big_npy,
-                    index_rate,
-                    protect,
-                )[self.t_pad_tgt : -self.t_pad_tgt]
-            )
-        else:
-            audio_opt.append(
-                self.vc(
-                    model,
-                    net_g,
-                    sid,
-                    audio_pad[t:],
-                    None,
-                    None,
-                    times,
-                    index,
-                    big_npy,
-                    index_rate,
-                    protect,
-                )[self.t_pad_tgt : -self.t_pad_tgt]
-            )
+        audio_opt.append(
+            self.vc(
+                model,
+                net_g,
+                sid,
+                audio_pad[t:],
+                pitch[:, t // self.window :] if t is not None else pitch,
+                pitchf[:, t // self.window :] if t is not None else pitchf,
+                times,
+                index,
+                big_npy,
+                index_rate,
+                protect,
+            )[self.t_pad_tgt : -self.t_pad_tgt]
+        )
         audio_opt = np.concatenate(audio_opt)
         if rms_mix_rate != 1:
             audio_opt = change_rms(audio, 16000, audio_opt, tgt_sr, rms_mix_rate)

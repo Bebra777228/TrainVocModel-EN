@@ -127,11 +127,6 @@ def get_hparams(init=True):
     parser.add_argument("-bs", "--batch_size", type=int, required=True)
     parser.add_argument("-e", "--experiment_dir", type=str, required=True)
     parser.add_argument("-sr", "--sample_rate", type=str, required=True)
-    parser.add_argument("-sw", "--save_every_weights", type=int, default=1)
-    parser.add_argument("-f0", "--if_f0", type=int, default=1)
-    parser.add_argument("-l", "--if_latest", type=int, default=1)
-    parser.add_argument("-c", "--if_cache_data_in_gpu", type=int, default=0)
-    parser.add_argument("-o", "--optimizer", type=str, default="AdamW") # AdamW | RAdam
 
     args = parser.parse_args()
     name = args.experiment_dir
@@ -151,11 +146,6 @@ def get_hparams(init=True):
     hparams.gpus = args.gpus
     hparams.train.batch_size = args.batch_size
     hparams.sample_rate = args.sample_rate
-    hparams.if_f0 = args.if_f0
-    hparams.if_latest = args.if_latest
-    hparams.save_every_weights = args.save_every_weights
-    hparams.if_cache_data_in_gpu = args.if_cache_data_in_gpu
-    hparams.optimizer = args.optimizer
     hparams.data.training_files = "%s/filelist.txt" % experiment_dir
     return hparams
 
