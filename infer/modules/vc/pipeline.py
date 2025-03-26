@@ -11,8 +11,6 @@ from time import time as ttime
 import faiss
 import librosa
 import numpy as np
-import parselmouth
-import pyworld
 import torch
 import torch.nn.functional as F
 import torchcrepe
@@ -22,22 +20,6 @@ now_dir = os.getcwd()
 sys.path.append(now_dir)
 
 bh, ah = signal.butter(N=5, Wn=48, btype="high", fs=16000)
-
-input_audio_path2wav = {}
-
-
-@lru_cache
-def cache_harvest_f0(input_audio_path, fs, f0max, f0min, frame_period):
-    audio = input_audio_path2wav[input_audio_path]
-    f0, t = pyworld.harvest(
-        audio,
-        fs=fs,
-        f0_ceil=f0max,
-        f0_floor=f0min,
-        frame_period=frame_period,
-    )
-    f0 = pyworld.stonemask(audio, f0, t, fs)
-    return f0
 
 
 def change_rms(data1, sr1, data2, sr2, rate):  # 1是输入音频，2是输出音频,rate是2的占比
@@ -83,42 +65,18 @@ class Pipeline(object):
 
     def get_f0(
         self,
-        input_audio_path,
         x,
         p_len,
         f0_up_key,
         f0_method,
-        filter_radius,
         inp_f0=None,
     ):
-        global input_audio_path2wav
         time_step = self.window / self.sr * 1000
         f0_min = 50
         f0_max = 1100
         f0_mel_min = 1127 * np.log(1 + f0_min / 700)
         f0_mel_max = 1127 * np.log(1 + f0_max / 700)
-        if f0_method == "pm":
-            f0 = (
-                parselmouth.Sound(x, self.sr)
-                .to_pitch_ac(
-                    time_step=time_step / 1000,
-                    voicing_threshold=0.6,
-                    pitch_floor=f0_min,
-                    pitch_ceiling=f0_max,
-                )
-                .selected_array["frequency"]
-            )
-            pad_size = (p_len - len(f0) + 1) // 2
-            if pad_size > 0 or p_len - len(f0) - pad_size > 0:
-                f0 = np.pad(
-                    f0, [[pad_size, p_len - len(f0) - pad_size]], mode="constant"
-                )
-        elif f0_method == "harvest":
-            input_audio_path2wav[input_audio_path] = x.astype(np.double)
-            f0 = cache_harvest_f0(input_audio_path, self.sr, f0_max, f0_min, 10)
-            if filter_radius > 2:
-                f0 = signal.medfilt(f0, 3)
-        elif f0_method == "crepe":
+        if f0_method == "crepe":
             model = "full"
             # Pick a batch size that doesn't cause memory errors on your gpu
             batch_size = 512
@@ -283,13 +241,11 @@ class Pipeline(object):
         net_g,
         sid,
         audio,
-        input_audio_path,
         times,
         f0_up_key,
         f0_method,
         file_index,
         index_rate,
-        filter_radius,
         tgt_sr,
         resample_sr,
         rms_mix_rate,
@@ -347,12 +303,10 @@ class Pipeline(object):
                 traceback.print_exc()
         sid = torch.tensor(sid, device=self.device).unsqueeze(0).long()
         pitch, pitchf = self.get_f0(
-            input_audio_path,
             audio_pad,
             p_len,
             f0_up_key,
             f0_method,
-            filter_radius,
             inp_f0,
         )
         pitch = pitch[:p_len]
