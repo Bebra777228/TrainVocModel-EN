@@ -83,7 +83,7 @@ def summarize(
     scalars={},
 ):
     for k, v in scalars.items():
-        writer.add_scalar(k, v, epoch)    # new_style=True, double_precision=True) - Просто для теста :)
+        writer.add_scalar(k, v, epoch, double_precision=True)
 
 
 def plot_spectrogram_to_numpy(spectrogram):
