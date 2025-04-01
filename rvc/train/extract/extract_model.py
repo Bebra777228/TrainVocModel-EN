@@ -1,12 +1,10 @@
-import os
-import sys
 import traceback
 from collections import OrderedDict
 
 import torch
 
 
-def savee(ckpt, sr, name, epoch, hps):
+def extract_model(ckpt, sr, name, epoch, hps):
     try:
         opt = OrderedDict()
         opt["weight"] = {}

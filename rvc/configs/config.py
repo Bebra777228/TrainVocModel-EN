@@ -1,13 +1,8 @@
-import argparse
-import os
-import sys
 import json
-import shutil
+import logging
 from multiprocessing import cpu_count
 
 import torch
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -64,13 +59,7 @@ class Config:
                 self.is_half = False
             else:
                 logger.info("Found GPU %s", self.gpu_name)
-            self.gpu_mem = int(
-                torch.cuda.get_device_properties(i_device).total_memory
-                / 1024
-                / 1024
-                / 1024
-                + 0.4
-            )
+            self.gpu_mem = int(torch.cuda.get_device_properties(i_device).total_memory / 1024 / 1024 / 1024 + 0.4)
         else:
             logger.info("No supported Nvidia GPU found")
             self.device = self.instead = "cpu"

@@ -1,11 +1,12 @@
+import logging
 import os
 import sys
-import logging
 import warnings
+
 import absl.logging
 
 # Настройка уровня логирования для различных библиотек
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 logging.getLogger("tensorflow").setLevel(logging.WARNING)
 logging.getLogger("h5py").setLevel(logging.WARNING)
 logging.getLogger("jax").setLevel(logging.WARNING)
@@ -23,31 +24,29 @@ now_dir = os.getcwd()
 sys.path.append(os.path.join(now_dir))
 
 import datetime
+from random import randint
 from time import sleep
 from time import time as ttime
-from random import randint, shuffle
 
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
-from torch.nn import functional as F
-from torch.utils.data import DataLoader
 from torch.amp import GradScaler, autocast
-from torch.utils.tensorboard import SummaryWriter
+from torch.nn import functional as F
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
-from rvc.train.utils import get_hparams, get_logger, save_checkpoint, load_checkpoint, latest_checkpoint_path, summarize
-from rvc.train.losses import discriminator_loss, feature_loss, generator_loss, kl_loss
-from rvc.train.mel_processing import mel_spectrogram_torch, spec_to_mel_torch
+from rvc.lib.algorithm.commons import clip_grad_value_, slice_segments
+from rvc.lib.algorithm.models import MultiPeriodDiscriminatorV2 as Discriminator
+from rvc.lib.algorithm.models import SynthesizerTrnMs768NSFsid as Synthesizer
+from rvc.train.data_utils import DistributedBucketSampler as Sampler
 from rvc.train.data_utils import TextAudioCollateMultiNSFsid as AudioCollate
 from rvc.train.data_utils import TextAudioLoaderMultiNSFsid as AudioLoader
-from rvc.train.data_utils import DistributedBucketSampler as Sampler
 from rvc.train.extract.extract_model import extract_model
-
-from rvc.lib.algorithm.models import SynthesizerTrnMs768NSFsid as Synthesizer
-from rvc.lib.algorithm.models import MultiPeriodDiscriminatorV2 as Discriminator
-from rvc.lib.algorithm.commons import slice_segments, clip_grad_value_
-
+from rvc.train.losses import discriminator_loss, feature_loss, generator_loss, kl_loss
+from rvc.train.mel_processing import mel_spectrogram_torch, spec_to_mel_torch
+from rvc.train.utils import get_hparams, get_logger, latest_checkpoint_path, load_checkpoint, save_checkpoint, summarize
 
 hps = get_hparams()
 os.environ["CUDA_VISIBLE_DEVICES"] = hps.gpus.replace("-", ",")
@@ -190,39 +189,19 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
             if rank == 0:
                 logger.info("loaded pretrained %s" % (hps.pretrainG))
             if hasattr(net_g, "module"):
-                logger.info(
-                    net_g.module.load_state_dict(
-                        torch.load(hps.pretrainG, map_location="cpu", weights_only=True)["model"]
-                    )
-                )
+                logger.info(net_g.module.load_state_dict(torch.load(hps.pretrainG, map_location="cpu", weights_only=True)["model"]))
             else:
-                logger.info(
-                    net_g.load_state_dict(
-                        torch.load(hps.pretrainG, map_location="cpu", weights_only=True)["model"]
-                    )
-                )
+                logger.info(net_g.load_state_dict(torch.load(hps.pretrainG, map_location="cpu", weights_only=True)["model"]))
         if hps.pretrainD != "":
             if rank == 0:
                 logger.info("loaded pretrained %s" % (hps.pretrainD))
             if hasattr(net_d, "module"):
-                logger.info(
-                    net_d.module.load_state_dict(
-                        torch.load(hps.pretrainD, map_location="cpu", weights_only=True)["model"]
-                    )
-                )
+                logger.info(net_d.module.load_state_dict(torch.load(hps.pretrainD, map_location="cpu", weights_only=True)["model"]))
             else:
-                logger.info(
-                    net_d.load_state_dict(
-                        torch.load(hps.pretrainD, map_location="cpu", weights_only=True)["model"]
-                    )
-                )
+                logger.info(net_d.load_state_dict(torch.load(hps.pretrainD, map_location="cpu", weights_only=True)["model"]))
 
-    scheduler_g = torch.optim.lr_scheduler.ExponentialLR(
-        optim_g, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2
-    )
-    scheduler_d = torch.optim.lr_scheduler.ExponentialLR(
-        optim_d, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2
-    )
+    scheduler_g = torch.optim.lr_scheduler.ExponentialLR(optim_g, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2)
+    scheduler_d = torch.optim.lr_scheduler.ExponentialLR(optim_d, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2)
 
     scaler = GradScaler(enabled=hps.train.fp16_run)
 
@@ -260,9 +239,7 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
         scheduler_d.step()
 
 
-def train_and_evaluate(
-    rank, epoch, hps, nets, optims, schedulers, scaler, loaders, logger, writers, cache
-):
+def train_and_evaluate(rank, epoch, hps, nets, optims, schedulers, scaler, loaders, logger, writers, cache):
     net_g, net_d = nets
     optim_g, optim_d = optims
     train_loader, eval_loader = loaders
@@ -289,7 +266,7 @@ def train_and_evaluate(
             spec_lengths = spec_lengths.cuda(rank, non_blocking=True)
             wave = wave.cuda(rank, non_blocking=True)
 
-        with autocast(device_type='cuda', enabled=hps.train.fp16_run):
+        with autocast(device_type="cuda", enabled=hps.train.fp16_run):
             (
                 y_hat,
                 ids_slice,
@@ -305,10 +282,8 @@ def train_and_evaluate(
                 hps.data.mel_fmin,
                 hps.data.mel_fmax,
             )
-            y_mel = slice_segments(
-                mel, ids_slice, hps.train.segment_size // hps.data.hop_length
-            )
-            with autocast(device_type='cuda', enabled=False):
+            y_mel = slice_segments(mel, ids_slice, hps.train.segment_size // hps.data.hop_length)
+            with autocast(device_type="cuda", enabled=False):
                 y_hat_mel = mel_spectrogram_torch(
                     y_hat.float().squeeze(1),
                     hps.data.filter_length,
@@ -321,24 +296,20 @@ def train_and_evaluate(
                 )
             if hps.train.fp16_run == True:
                 y_hat_mel = y_hat_mel.half()
-            wave = slice_segments(
-                wave, ids_slice * hps.data.hop_length, hps.train.segment_size
-            )
+            wave = slice_segments(wave, ids_slice * hps.data.hop_length, hps.train.segment_size)
 
             y_d_hat_r, y_d_hat_g, _, _ = net_d(wave, y_hat.detach())
-            with autocast(device_type='cuda', enabled=False):
-                loss_disc, losses_disc_r, losses_disc_g = discriminator_loss(
-                    y_d_hat_r, y_d_hat_g
-                )
+            with autocast(device_type="cuda", enabled=False):
+                loss_disc, losses_disc_r, losses_disc_g = discriminator_loss(y_d_hat_r, y_d_hat_g)
         optim_d.zero_grad()
         scaler.scale(loss_disc).backward()
         scaler.unscale_(optim_d)
         grad_norm_d = clip_grad_value_(net_d.parameters(), None)
         scaler.step(optim_d)
 
-        with autocast(device_type='cuda', enabled=hps.train.fp16_run):
+        with autocast(device_type="cuda", enabled=hps.train.fp16_run):
             y_d_hat_r, y_d_hat_g, fmap_r, fmap_g = net_d(wave, y_hat)
-            with autocast(device_type='cuda', enabled=False):
+            with autocast(device_type="cuda", enabled=False):
                 loss_mel = F.l1_loss(y_mel, y_hat_mel) * hps.train.c_mel
                 loss_kl = kl_loss(z_p, logs_q, m_p, logs_p, z_mask) * hps.train.c_kl
                 loss_fm = feature_loss(fmap_r, fmap_g)
@@ -416,14 +387,7 @@ def train_and_evaluate(
             ckpt = net_g.module.state_dict()
         else:
             ckpt = net_g.state_dict()
-        logger.info(
-            "Финальная модель успешно сохранена: %s"
-            % (
-                extract_model(
-                    ckpt, hps.sample_rate, hps.name, epoch, hps
-                )
-            )
-        )
+        logger.info("Финальная модель успешно сохранена: %s" % (extract_model(ckpt, hps.sample_rate, hps.name, epoch, hps)))
         sleep(1)
         os._exit(2333333)
 

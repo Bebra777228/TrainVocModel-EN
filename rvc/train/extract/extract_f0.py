@@ -91,10 +91,7 @@ class FeatureInput(object):
                     if idx % n == 0:
                         printt(f"{idx}/{len(paths)}")  # Вывод прогресса
                     # Пропускаем, если файлы уже существуют
-                    if (
-                        os.path.exists(opt_path1 + ".npy") == True
-                        and os.path.exists(opt_path2 + ".npy") == True
-                    ):
+                    if os.path.exists(opt_path1 + ".npy") == True and os.path.exists(opt_path2 + ".npy") == True:
                         continue
                     featur_pit = self.compute_f0(inp_path, f0_method)  # Извлечение F0
                     np.save(opt_path2, featur_pit, allow_pickle=False)  # Сохранение F0

@@ -83,9 +83,7 @@ class Slicer:
         if samples.shape[0] <= self.min_length:
             return [waveform]
 
-        rms_list = get_rms(
-            y=samples, frame_length=self.win_size, hop_length=self.hop_size
-        ).squeeze(0)
+        rms_list = get_rms(y=samples, frame_length=self.win_size, hop_length=self.hop_size).squeeze(0)
 
         # Detect silence segments and mark them
         sil_tags = []
@@ -103,10 +101,7 @@ class Slicer:
 
             # Check if current silence segment is leading silence or need to slice
             is_leading_silence = silence_start == 0 and i > self.max_sil_kept
-            need_slice_middle = (
-                i - silence_start >= self.min_interval
-                and i - clip_start >= self.min_length
-            )
+            need_slice_middle = i - silence_start >= self.min_interval and i - clip_start >= self.min_length
 
             # If not leading silence and not need to slice middle
             if not is_leading_silence and not need_slice_middle:
@@ -124,21 +119,10 @@ class Slicer:
                 clip_start = pos
             elif i - silence_start <= self.max_sil_kept * 2:
                 # Medium silence
-                pos = rms_list[
-                    i - self.max_sil_kept : silence_start + self.max_sil_kept + 1
-                ].argmin()
+                pos = rms_list[i - self.max_sil_kept : silence_start + self.max_sil_kept + 1].argmin()
                 pos += i - self.max_sil_kept
-                pos_l = (
-                    rms_list[
-                        silence_start : silence_start + self.max_sil_kept + 1
-                    ].argmin()
-                    + silence_start
-                )
-                pos_r = (
-                    rms_list[i - self.max_sil_kept : i + 1].argmin()
-                    + i
-                    - self.max_sil_kept
-                )
+                pos_l = rms_list[silence_start : silence_start + self.max_sil_kept + 1].argmin() + silence_start
+                pos_r = rms_list[i - self.max_sil_kept : i + 1].argmin() + i - self.max_sil_kept
                 if silence_start == 0:
                     sil_tags.append((0, pos_r))
                     clip_start = pos_r
@@ -147,17 +131,8 @@ class Slicer:
                     clip_start = max(pos_r, pos)
             else:
                 # Long silence
-                pos_l = (
-                    rms_list[
-                        silence_start : silence_start + self.max_sil_kept + 1
-                    ].argmin()
-                    + silence_start
-                )
-                pos_r = (
-                    rms_list[i - self.max_sil_kept : i + 1].argmin()
-                    + i
-                    - self.max_sil_kept
-                )
+                pos_l = rms_list[silence_start : silence_start + self.max_sil_kept + 1].argmin() + silence_start
+                pos_r = rms_list[i - self.max_sil_kept : i + 1].argmin() + i - self.max_sil_kept
                 if silence_start == 0:
                     sil_tags.append((0, pos_r))
                 else:
@@ -167,10 +142,7 @@ class Slicer:
 
         # Handle trailing silence
         total_frames = rms_list.shape[0]
-        if (
-            silence_start is not None
-            and total_frames - silence_start >= self.min_interval
-        ):
+        if silence_start is not None and total_frames - silence_start >= self.min_interval:
             silence_end = min(total_frames, silence_start + self.max_sil_kept)
             pos = rms_list[silence_start : silence_end + 1].argmin() + silence_start
             sil_tags.append((pos, total_frames + 1))
@@ -184,14 +156,10 @@ class Slicer:
                 chunks.append(self._apply_slice(waveform, 0, sil_tags[0][0]))
 
             for i in range(len(sil_tags) - 1):
-                chunks.append(
-                    self._apply_slice(waveform, sil_tags[i][1], sil_tags[i + 1][0])
-                )
+                chunks.append(self._apply_slice(waveform, sil_tags[i][1], sil_tags[i + 1][0]))
 
             if sil_tags[-1][1] < total_frames:
-                chunks.append(
-                    self._apply_slice(waveform, sil_tags[-1][1], total_frames)
-                )
+                chunks.append(self._apply_slice(waveform, sil_tags[-1][1], total_frames))
 
             return chunks
 

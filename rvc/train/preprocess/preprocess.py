@@ -61,13 +61,9 @@ class PreProcess:
             printt(f"{idx0}-{idx1}-{tmp_max}-filtered")
             return
 
-        tmp_audio = librosa.resample(
-            tmp_audio, orig_sr=self.sr, target_sr=self.sr_trgt, res_type="soxr_vhq"
-        )
+        tmp_audio = librosa.resample(tmp_audio, orig_sr=self.sr, target_sr=self.sr_trgt, res_type="soxr_vhq")
 
-        tmp_audio = (tmp_audio / tmp_max * (self.max * self.alpha)) + (
-            1 - self.alpha
-        ) * tmp_audio
+        tmp_audio = (tmp_audio / tmp_max * (self.max * self.alpha)) + (1 - self.alpha) * tmp_audio
 
         wavfile.write(
             f"{self.gt_wavs_dir}/{idx0}_{idx1}.wav",
@@ -75,9 +71,7 @@ class PreProcess:
             tmp_audio.astype(np.float32),
         )
 
-        tmp_audio = librosa.resample(
-            tmp_audio, orig_sr=self.sr, target_sr=16000, res_type="soxr_vhq"
-        )
+        tmp_audio = librosa.resample(tmp_audio, orig_sr=self.sr, target_sr=16000, res_type="soxr_vhq")
 
         wavfile.write(
             f"{self.wavs16k_dir}/{idx0}_{idx1}.wav",
@@ -115,19 +109,14 @@ class PreProcess:
 
     def pipeline_mp_inp_dir(self, inp_root, n_p):
         try:
-            infos = [
-                (os.path.join(inp_root, name), idx)
-                for idx, name in enumerate(sorted(list(os.listdir(inp_root))))
-            ]
+            infos = [(os.path.join(inp_root, name), idx) for idx, name in enumerate(sorted(list(os.listdir(inp_root))))]
             if noparallel:
                 for i in range(n_p):
                     self.pipeline_mp(infos[i::n_p])
             else:
                 ps = []
                 for i in range(n_p):
-                    p = multiprocessing.Process(
-                        target=self.pipeline_mp, args=(infos[i::n_p],)
-                    )
+                    p = multiprocessing.Process(target=self.pipeline_mp, args=(infos[i::n_p],))
                     ps.append(p)
                     p.start()
                 for p in ps:

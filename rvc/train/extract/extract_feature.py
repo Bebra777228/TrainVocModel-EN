@@ -52,6 +52,7 @@ def readwave(wav_path, normalize=False):
     feats = feats.view(1, -1)
     return feats
 
+
 if os.access(model_path, os.F_OK) == False:
     printt(
         f"Error: Extracting is shut down because {model_path} does not exist, you may download it from https://huggingface.co/lj1995/VoiceConversionWebUI/tree/main"
@@ -97,11 +98,7 @@ else:
                 feats = readwave(wav_path, normalize=saved_cfg.task.normalize)
                 padding_mask = torch.BoolTensor(feats.shape).fill_(False)
                 inputs = {
-                    "source": (
-                        feats.half().to(device)
-                        if is_half and device not in ["mps", "cpu"]
-                        else feats.to(device)
-                    ),
+                    "source": (feats.half().to(device) if is_half and device not in ["mps", "cpu"] else feats.to(device)),
                     "padding_mask": padding_mask.to(device),
                     "output_layer": 12,
                 }
