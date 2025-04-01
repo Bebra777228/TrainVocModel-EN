@@ -10,8 +10,8 @@ from scipy.io import wavfile
 
 sys.path.append(os.getcwd())
 
-from infer.lib.audio import load_audio
-from infer.lib.slicer import Slicer
+from rvc.lib.audio import load_audio
+from rvc.train.preprocess.slicer import Slicer
 
 inp_root = sys.argv[1]
 sr = int(sys.argv[2])

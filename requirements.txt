@@ -39,7 +39,6 @@ httpx
 torchcrepe==0.0.23
 ffmpy==0.3.1
 python-dotenv>=1.0.0
-av
 soxr
 torch<2.6
 torchaudio<2.6

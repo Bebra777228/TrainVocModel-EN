@@ -44,7 +44,7 @@ class Config:
     def load_config_json(self):
         configs = {}
         for config_file in version_config_list:
-            with open(f"configs/{config_file}", "r") as f:
+            with open(f"rvc/configs/{config_file}", "r") as f:
                 configs[config_file] = json.load(f)
         return configs
 

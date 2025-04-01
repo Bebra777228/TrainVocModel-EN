@@ -7,8 +7,8 @@ import numpy as np
 
 sys.path.append(os.getcwd())
 
-from infer.lib.audio import load_audio
-from infer.lib.rmvpe import RMVPE
+from rvc.lib.audio import load_audio
+from rvc.lib.rmvpe import RMVPE
 
 logging.getLogger("numba").setLevel(logging.WARNING)
 

@@ -36,17 +36,17 @@ from torch.amp import GradScaler, autocast
 from torch.utils.tensorboard import SummaryWriter
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from infer.lib.train.utils import get_hparams, get_logger, save_checkpoint, load_checkpoint, latest_checkpoint_path, summarize
-from infer.lib.train.losses import discriminator_loss, feature_loss, generator_loss, kl_loss
-from infer.lib.train.mel_processing import mel_spectrogram_torch, spec_to_mel_torch
-from infer.lib.train.data_utils import TextAudioCollateMultiNSFsid as AudioCollate
-from infer.lib.train.data_utils import TextAudioLoaderMultiNSFsid as AudioLoader
-from infer.lib.train.data_utils import DistributedBucketSampler as Sampler
-from infer.lib.train.process_ckpt import savee
+from rvc.train.utils import get_hparams, get_logger, save_checkpoint, load_checkpoint, latest_checkpoint_path, summarize
+from rvc.train.losses import discriminator_loss, feature_loss, generator_loss, kl_loss
+from rvc.train.mel_processing import mel_spectrogram_torch, spec_to_mel_torch
+from rvc.train.data_utils import TextAudioCollateMultiNSFsid as AudioCollate
+from rvc.train.data_utils import TextAudioLoaderMultiNSFsid as AudioLoader
+from rvc.train.data_utils import DistributedBucketSampler as Sampler
+from rvc.train.extract.extract_model import extract_model
 
-from infer.lib.infer_pack.models import SynthesizerTrnMs768NSFsid as Synthesizer
-from infer.lib.infer_pack.models import MultiPeriodDiscriminatorV2 as Discriminator
-from infer.lib.infer_pack.commons import slice_segments, clip_grad_value_
+from rvc.lib.algorithm.models import SynthesizerTrnMs768NSFsid as Synthesizer
+from rvc.lib.algorithm.models import MultiPeriodDiscriminatorV2 as Discriminator
+from rvc.lib.algorithm.commons import slice_segments, clip_grad_value_
 
 
 hps = get_hparams()
@@ -396,7 +396,7 @@ def train_and_evaluate(
                 hps.name,
                 epoch,
                 global_step,
-                savee(
+                extract_model(
                     ckpt,
                     hps.sample_rate,
                     hps.name + "_e%s_s%s" % (epoch, global_step),
@@ -419,7 +419,7 @@ def train_and_evaluate(
         logger.info(
             "Финальная модель успешно сохранена: %s"
             % (
-                savee(
+                extract_model(
                     ckpt, hps.sample_rate, hps.name, epoch, hps
                 )
             )
