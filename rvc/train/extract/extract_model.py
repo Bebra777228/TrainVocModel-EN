@@ -9,8 +9,12 @@ def extract_model(hps, ckpt, name, epoch, step, sample_rate, model_dir, final_sa
     weights_dir = os.path.join(model_dir, "weights")
     os.makedirs(weights_dir, exist_ok=True)
 
-    filename = f"{name}_e{epoch}_s{step}.pth" if not final_save else f"{name}.pth"
-    filepath = os.path.join(weights_dir, filename)
+    if final_save:
+        filename = f"{name}.pth"
+        filepath = os.path.join(model_dir, filename)
+    else:
+        filename = f"{name}_e{epoch}_s{step}.pth"
+        filepath = os.path.join(weights_dir, filename)
 
     try:
         opt = OrderedDict()

@@ -13,7 +13,7 @@ try:
     feature_dir = os.path.join(exp_dir, "data", "features")
     model_name = os.path.basename(exp_dir)
 
-    index_filename = f"added_{model_name}.index"
+    index_filename = f"{model_name}.index"
     index_filepath = os.path.join(exp_dir, index_filename)
 
     if os.path.exists(index_filepath):
