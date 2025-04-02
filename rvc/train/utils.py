@@ -126,6 +126,7 @@ def get_hparams(init=True):
     parser.add_argument("-bs", "--batch_size", type=int, required=True)
     parser.add_argument("-e", "--experiment_dir", type=str, required=True)
     parser.add_argument("-sr", "--sample_rate", type=str, required=True)
+    parser.add_argument("-sz", "--save_to_zip", type=str, required=True)
 
     args = parser.parse_args()
     name = args.experiment_dir
@@ -145,6 +146,7 @@ def get_hparams(init=True):
     hparams.gpus = args.gpus
     hparams.train.batch_size = args.batch_size
     hparams.sample_rate = args.sample_rate
+    hparams.save_to_zip = args.save_to_zip
     hparams.data.training_files = f"{experiment_dir}/data/filelist.txt"
     return hparams
 

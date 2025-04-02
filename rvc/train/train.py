@@ -24,6 +24,7 @@ now_dir = os.getcwd()
 sys.path.append(os.path.join(now_dir))
 
 import datetime
+import zipfile
 from random import randint
 from time import sleep
 from time import time as ttime
@@ -341,6 +342,14 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, scaler, loaders, logger, 
         checkpoint = net_g.module.state_dict() if hasattr(net_g, "module") else net_g.state_dict()
         save_model = extract_model(hps, checkpoint, hps.name, epoch, global_step, hps.sample_rate, hps.model_dir, final_save=True)
         logger.info(save_model)
+
+        if hps.save_to_zip == "True":
+            zip_filename = os.path.join(hps.model_dir, f"{hps.name}.zip")
+            with zipfile.ZipFile(zip_filename, 'w') as zipf:
+                for ext in ('.pth', '.index'):
+                    file_path = os.path.join(hps.model_dir, f"{hps.name}{ext}")
+                    zipf.write(file_path, os.path.basename(file_path))
+            logger.info(f"Файлы модели были заархивированы в `{zip_filename}`")
 
         logger.info("Тренировка успешно завершена. Завершение программы...")
         sleep(1)
