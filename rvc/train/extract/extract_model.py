@@ -1,10 +1,17 @@
+import os
 import traceback
 from collections import OrderedDict
 
 import torch
 
 
-def extract_model(ckpt, sr, name, epoch, hps):
+def extract_model(hps, ckpt, name, epoch, step, sample_rate, model_dir, final_save):
+    weights_dir = os.path.join(model_dir, "weights")
+    os.makedirs(weights_dir, exist_ok=True)
+
+    filename = f"{name}_e{epoch}_s{step}.pth" if not final_save else f"{name}.pth"
+    filepath = os.path.join(weights_dir, filename)
+
     try:
         opt = OrderedDict()
         opt["weight"] = {}
@@ -32,11 +39,16 @@ def extract_model(ckpt, sr, name, epoch, hps):
             hps.model.gin_channels,
             hps.data.sampling_rate,
         ]
-        opt["info"] = "%sepoch" % epoch
-        opt["sr"] = sr
+
+        opt["model_name"] = name
+        opt["epoch"] = epoch
+        opt["step"] = step
+        opt["sr"] = sample_rate
         opt["f0"] = True
         opt["version"] = "v2"
-        torch.save(opt, "assets/weights/%s.pth" % name)
-        return "Success."
-    except:
-        return traceback.format_exc()
+
+        torch.save(opt, filepath)
+
+        return f"Модель '{filename}' успешно сохранена!"
+    except Exception as e:
+        return f"Ошибка при сохранении модели: {traceback.format_exc()}"

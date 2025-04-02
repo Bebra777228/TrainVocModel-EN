@@ -68,8 +68,7 @@ class EpochRecorder:
         self.last_time = now_time
         elapsed_time = round(elapsed_time, 1)
         elapsed_time_str = str(datetime.timedelta(seconds=int(elapsed_time)))
-        current_time = datetime.datetime.now().strftime("%H:%M:%S")
-        return f"Скорость: [{elapsed_time_str}] | Время: [{current_time}]"
+        return f"Скорость: [{elapsed_time_str}]"
 
 
 def main():
@@ -105,19 +104,9 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
     if rank == 0:
         logger.info(f"Используемый бэкенд распределенных вычислений: {backend}")
     try:
-        dist.init_process_group(
-            backend=backend,
-            init_method="env://",
-            world_size=n_gpus,
-            rank=rank,
-        )
+        dist.init_process_group(backend=backend, init_method="env://", world_size=n_gpus, rank=rank)
     except:
-        dist.init_process_group(
-            backend=backend,
-            init_method="env://?use_libuv=False",
-            world_size=n_gpus,
-            rank=rank,
-        )
+        dist.init_process_group(backend=backend, init_method="env://?use_libuv=False", world_size=n_gpus, rank=rank)
 
     torch.manual_seed(hps.train.seed)
     if torch.cuda.is_available():
@@ -180,80 +169,64 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
     try:
         _, _, _, epoch_str = load_checkpoint(latest_checkpoint_path(hps.model_dir, "D_*.pth"), net_d, optim_d)
         _, _, _, epoch_str = load_checkpoint(latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g, optim_g)
+
         epoch_str += 1
         global_step = (epoch_str - 1) * len(train_loader)
     except:
         epoch_str = 1
         global_step = 0
-        if hps.pretrainG != "":
+
+        if hps.pretrainG != "" and hps.pretrainG != "None":
             if rank == 0:
-                logger.info("loaded pretrained %s" % (hps.pretrainG))
-            if hasattr(net_g, "module"):
-                logger.info(net_g.module.load_state_dict(torch.load(hps.pretrainG, map_location="cpu", weights_only=True)["model"]))
-            else:
-                logger.info(net_g.load_state_dict(torch.load(hps.pretrainG, map_location="cpu", weights_only=True)["model"]))
-        if hps.pretrainD != "":
+                logger.info(f"Загрузка претрейна {hps.pretrainG}")
+            g_model = net_g.module if hasattr(net_g, "module") else net_g
+            logger.info(g_model.load_state_dict(torch.load(hps.pretrainG, map_location="cpu", weights_only=True)["model"]))
+
+        if hps.pretrainD != "" and hps.pretrainD != "None":
             if rank == 0:
-                logger.info("loaded pretrained %s" % (hps.pretrainD))
-            if hasattr(net_d, "module"):
-                logger.info(net_d.module.load_state_dict(torch.load(hps.pretrainD, map_location="cpu", weights_only=True)["model"]))
-            else:
-                logger.info(net_d.load_state_dict(torch.load(hps.pretrainD, map_location="cpu", weights_only=True)["model"]))
+                logger.info(f"Загрузка претрейна {hps.pretrainD}")
+            d_model = net_d.module if hasattr(net_d, "module") else net_d
+            logger.info(d_model.load_state_dict(torch.load(hps.pretrainD, map_location="cpu", weights_only=True)["model"]))
 
     scheduler_g = torch.optim.lr_scheduler.ExponentialLR(optim_g, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2)
     scheduler_d = torch.optim.lr_scheduler.ExponentialLR(optim_d, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2)
 
     scaler = GradScaler(enabled=hps.train.fp16_run)
 
-    cache = []
-    for epoch in range(epoch_str, hps.train.epochs + 1):
-        if rank == 0:
-            train_and_evaluate(
-                rank,
-                epoch,
-                hps,
-                [net_g, net_d],
-                [optim_g, optim_d],
-                [scheduler_g, scheduler_d],
-                scaler,
-                [train_loader, None],
-                logger,
-                [writer_eval],
-                cache,
-            )
-        else:
-            train_and_evaluate(
-                rank,
-                epoch,
-                hps,
-                [net_g, net_d],
-                [optim_g, optim_d],
-                [scheduler_g, scheduler_d],
-                scaler,
-                [train_loader, None],
-                None,
-                None,
-                cache,
-            )
+    for epoch in range(epoch_str, hps.total_epoch + 1):
+        train_and_evaluate(
+            hps,
+            rank,
+            epoch,
+            [net_g, net_d],
+            [optim_g, optim_d],
+            scaler,
+            [train_loader, None],
+            logger,
+            [writer_eval],
+        )
         scheduler_g.step()
         scheduler_d.step()
 
 
-def train_and_evaluate(rank, epoch, hps, nets, optims, schedulers, scaler, loaders, logger, writers, cache):
-    net_g, net_d = nets
-    optim_g, optim_d = optims
-    train_loader, eval_loader = loaders
+def train_and_evaluate(hps, rank, epoch, nets, optims, scaler, loaders, logger, writers):
+    global global_step
+
     if writers is not None:
         writer = writers[0]
 
+    epoch_recorder = EpochRecorder()
+
+    net_g, net_d = nets
+    optim_g, optim_d = optims
+
+    train_loader, eval_loader = loaders
     train_loader.batch_sampler.set_epoch(epoch)
-    global global_step
 
     net_g.train()
     net_d.train()
 
     data_iterator = enumerate(train_loader)
-    epoch_recorder = EpochRecorder()
     for batch_idx, info in data_iterator:
         phone, phone_lengths, pitch, pitchf, spec, spec_lengths, wave, wave_lengths, sid = info
         if torch.cuda.is_available():
@@ -341,53 +314,35 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, schedulers, scaler, loade
         }
         summarize(writer=writer, epoch=epoch, scalars=scalar_dict)
 
-    if epoch % hps.save_every_epoch == 0 and rank == 0:
+    if rank == 0 and epoch % hps.save_every_epoch == 0:
         save_checkpoint(
             net_g,
             optim_g,
             hps.train.learning_rate,
             epoch,
-            os.path.join(hps.model_dir, "G_{}.pth".format(2333333)),
+            os.path.join(hps.model_dir, "G_checkpoint.pth"),
         )
         save_checkpoint(
             net_d,
             optim_d,
             hps.train.learning_rate,
             epoch,
-            os.path.join(hps.model_dir, "D_{}.pth".format(2333333)),
+            os.path.join(hps.model_dir, "D_checkpoint.pth"),
         )
 
-        if hasattr(net_g, "module"):
-            ckpt = net_g.module.state_dict()
-        else:
-            ckpt = net_g.state_dict()
-        logger.info(
-            "Сохранение модели - %s_e%s_s%s: %s"
-            % (
-                hps.name,
-                epoch,
-                global_step,
-                extract_model(
-                    ckpt,
-                    hps.sample_rate,
-                    hps.name + "_e%s_s%s" % (epoch, global_step),
-                    epoch,
-                    hps,
-                ),
-            )
-        )
+        checkpoint = net_g.module.state_dict() if hasattr(net_g, "module") else net_g.state_dict()
+        save_model = extract_model(hps, checkpoint, hps.name, epoch, global_step, hps.sample_rate, hps.model_dir, final_save=False)
+        logger.info(save_model)
 
     if rank == 0:
-        logger.info("====> Эпоха: {}/{} | Шаг: {} | {}".format(epoch, hps.total_epoch, global_step, epoch_recorder.record()))
+        logger.info(f"====> Эпоха: {epoch}/{hps.total_epoch} | Шаг: {global_step} | {epoch_recorder.record()}")
 
-    if epoch >= hps.total_epoch and rank == 0:
+    if rank == 0 and epoch >= hps.total_epoch:
+        checkpoint = net_g.module.state_dict() if hasattr(net_g, "module") else net_g.state_dict()
+        save_model = extract_model(hps, checkpoint, hps.name, epoch, global_step, hps.sample_rate, hps.model_dir, final_save=True)
+        logger.info(save_model)
+
         logger.info("Тренировка успешно завершена. Завершение программы...")
-
-        if hasattr(net_g, "module"):
-            ckpt = net_g.module.state_dict()
-        else:
-            ckpt = net_g.state_dict()
-        logger.info("Финальная модель успешно сохранена: %s" % (extract_model(ckpt, hps.sample_rate, hps.name, epoch, hps)))
         sleep(1)
         os._exit(2333333)
 
