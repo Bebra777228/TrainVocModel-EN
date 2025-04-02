@@ -10,7 +10,7 @@ exp_dir = str(sys.argv[1])
 index_algorithm = str(sys.argv[2])
 
 try:
-    feature_dir = os.path.join(exp_dir, "3_feature768")
+    feature_dir = os.path.join(exp_dir, "data", "features")
     model_name = os.path.basename(exp_dir)
 
     index_filename = f"added_{model_name}.index"

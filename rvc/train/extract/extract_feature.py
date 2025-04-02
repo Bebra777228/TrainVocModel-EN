@@ -34,8 +34,8 @@ def printt(strr):
 
 model_path = "assets/hubert/hubert_base.pt"
 
-wavPath = f"{exp_dir}/1_16k_wavs"
-outPath = f"{exp_dir}/3_feature768"
+wavPath = f"{exp_dir}/data/sliced_audios_16k"
+outPath = f"{exp_dir}/data/features"
 os.makedirs(outPath, exist_ok=True)
 
 

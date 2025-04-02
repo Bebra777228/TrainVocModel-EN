@@ -146,7 +146,7 @@ def get_hparams(init=True):
     hparams.gpus = args.gpus
     hparams.train.batch_size = args.batch_size
     hparams.sample_rate = args.sample_rate
-    hparams.data.training_files = "%s/filelist.txt" % experiment_dir
+    hparams.data.training_files = f"{experiment_dir}/data/filelist.txt"
     return hparams
 
 

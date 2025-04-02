@@ -104,9 +104,9 @@ class FeatureInput(object):
 if __name__ == "__main__":
     featureInput = FeatureInput()
     paths = []
-    inp_root = f"{exp_dir}/1_16k_wavs"  # Директория с входными аудиофайлами
-    opt_root1 = f"{exp_dir}/2a_f0"  # Директория для сохранения квантованного F0
-    opt_root2 = f"{exp_dir}/2b-f0nsf"  # Директория для сохранения F0
+    inp_root = f"{exp_dir}/data/sliced_audios_16k"  # Директория с входными аудиофайлами
+    opt_root1 = f"{exp_dir}/data/f0_quantized"  # Директория для сохранения квантованного F0
+    opt_root2 = f"{exp_dir}/data/f0_voiced"  # Директория для сохранения F0
 
     # Создаем директории, если они не существуют
     os.makedirs(opt_root1, exist_ok=True)
