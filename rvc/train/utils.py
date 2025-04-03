@@ -125,12 +125,13 @@ def get_hparams(init=True):
     parser.add_argument("-g", "--gpus", type=str, default="0")
     parser.add_argument("-bs", "--batch_size", type=int, required=True)
     parser.add_argument("-e", "--experiment_dir", type=str, required=True)
+    parser.add_argument("-m", "--model_name", type=str, required=True)
     parser.add_argument("-sr", "--sample_rate", type=str, required=True)
     parser.add_argument("-sz", "--save_to_zip", type=str, required=True)
 
     args = parser.parse_args()
-    name = args.experiment_dir
-    experiment_dir = os.path.join("./logs", args.experiment_dir)
+    name = args.model_name
+    experiment_dir = os.path.join(args.experiment_dir, args.model_name)
 
     config_save_path = os.path.join(experiment_dir, "config.json")
     with open(config_save_path, "r") as f:
