@@ -3,8 +3,6 @@ import os
 import sys
 import warnings
 
-import absl.logging
-
 # Настройка уровня логирования для различных библиотек
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 logging.getLogger("tensorflow").setLevel(logging.WARNING)
@@ -12,7 +10,6 @@ logging.getLogger("h5py").setLevel(logging.WARNING)
 logging.getLogger("jax").setLevel(logging.WARNING)
 logging.getLogger("numexpr").setLevel(logging.WARNING)
 logging.getLogger("pytorch_lightning").setLevel(logging.WARNING)
-absl.logging.set_verbosity(absl.logging.WARNING)
 
 # Подавление предупреждений
 warnings.filterwarnings("ignore", category=FutureWarning)
