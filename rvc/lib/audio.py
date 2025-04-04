@@ -1,24 +1,15 @@
-import platform
+import librosa
+import soundfile as sf
 
-import ffmpeg
-import numpy as np
-
-
-def load_audio(file, sr):
+def load_audio(file, sample_rate):
     try:
-        file = clean_path(file)
-        out, _ = (
-            ffmpeg.input(file, threads=0)
-            .output("-", format="f32le", acodec="pcm_f32le", ac=1, ar=sr)
-            .run(cmd=["ffmpeg", "-nostdin"], capture_stdout=True, capture_stderr=True)
-        )
-    except Exception as e:
-        raise RuntimeError(f"Failed to load audio: {e}")
+        file = file.strip(" ").strip('"').strip("\n").strip('"').strip(" ")
+        audio, sr = sf.read(file)
+        if len(audio.shape) > 1:
+            audio = librosa.to_mono(audio.T)
+        if sr != sample_rate:
+            audio = librosa.resample(audio, orig_sr=sr, target_sr=sample_rate, res_type="soxr_vhq")
+    except Exception as error:
+        raise RuntimeError(f"Возникла ошибка при загрузке аудио: {error}")
 
-    return np.frombuffer(out, np.float32).flatten()
-
-
-def clean_path(path_str):
-    if platform.system() == "Windows":
-        path_str = path_str.replace("/", "\\")
-    return path_str.strip(" ").strip('"').strip("\n").strip('"').strip(" ")
+    return audio.flatten()

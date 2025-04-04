@@ -1,6 +1,9 @@
+import logging
 import os
 import sys
 import traceback
+import warnings
+from tqdm import tqdm
 
 import fairseq
 import numpy as np
@@ -8,14 +11,20 @@ import soundfile as sf
 import torch
 import torch.nn.functional as F
 
-n_part = int(sys.argv[1])
-i_part = int(sys.argv[2])
-exp_dir = sys.argv[3]
-is_half = sys.argv[4].lower() == "true"
+# Отключаем мусорное логирование
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+logging.getLogger("fairseq").setLevel(logging.WARNING)
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 
+# Получаем путь к директории эксперимента
+exp_dir = sys.argv[1]
+
+# Настройка переменных окружения для работы с MPS (Metal Performance Shaders)
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
 
+# Определяем устройство для вычислений (CUDA, MPS или CPU)
 if torch.cuda.is_available():
     device = "cuda"
 elif torch.backends.mps.is_available():
@@ -25,53 +34,45 @@ else:
 
 f = open(f"{exp_dir}/logfile.log", "a+")
 
-
+# Функция для вывода и записи в лог
 def printt(strr):
     print(strr)
     f.write(f"{strr}\n")
     f.flush()
 
-
+# Путь к модели HuBERT
 model_path = "assets/hubert/hubert_base.pt"
 
+# Пути к директориям с аудиофайлами и для сохранения признаков
 wavPath = f"{exp_dir}/data/sliced_audios_16k"
 outPath = f"{exp_dir}/data/features"
 os.makedirs(outPath, exist_ok=True)
 
-
-def readwave(wav_path, normalize=False):
+# Функция для чтения аудиофайла и преобразования его в тензор
+def readwave(wav_path):
     wav, sr = sf.read(wav_path)
-    assert sr == 16000
+    assert sr == 16000  # Проверяем, что частота дискретизации равна 16 кГц
     feats = torch.from_numpy(wav).float()
-    if feats.dim() == 2:
+    if feats.dim() == 2:  # Если аудио стерео, усредняем до моно
         feats = feats.mean(-1)
-    assert feats.dim() == 1, feats.dim()
-    if normalize:
-        with torch.no_grad():
-            feats = F.layer_norm(feats, feats.shape)
-    feats = feats.view(1, -1)
+    assert feats.dim() == 1, feats.dim()  # Проверяем, что тензор одномерный
+    feats = feats.view(1, -1)  # Добавляем размерность батча
     return feats
 
-
+# Проверяем, существует ли модель
 if os.access(model_path, os.F_OK) == False:
-    printt(
-        f"Error: Extracting is shut down because {model_path} does not exist, you may download it from https://huggingface.co/lj1995/VoiceConversionWebUI/tree/main"
-    )
-    exit(0)
-models, saved_cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task(
-    [model_path],
-    suffix="",
-)
+    raise FileNotFoundError(f"Error: Extracting is shut down because {model_path} does not exist, you may download it from https://huggingface.co/lj1995/VoiceConversionWebUI/tree/main")
+
+# Загружаем модель HuBERT
+models, _, _ = fairseq.checkpoint_utils.load_model_ensemble_and_task([model_path], suffix="")
 model = models[0]
 model = model.to(device)
-
-if is_half:
-    if device not in ["mps", "cpu"]:
-        model = model.half()
 model.eval()
 
-todo = sorted(list(os.listdir(wavPath)))[i_part::n_part]
-n = max(1, len(todo) // 10)
+# Получаем список файлов для обработки
+todo = sorted(list(os.listdir(wavPath)))[0::1]
+
+# Проверяем, есть ли файлы для обработки
 if len(todo) == 0:
     error_message = (
         "ОШИБКА: Не найдено ни одного признака для обработки.\n"
@@ -81,38 +82,47 @@ if len(todo) == 0:
         "3. Датасет слишком короткий (менее 5 секунд).\n"
         "4. Датасет слишком длинный (более 1 часа)."
     )
-    printt(error_message)
-    sys.exit(1)
+    raise FileNotFoundError(error_message)
 else:
-    printt(f"Фрагментов готовых к обработке - {len(todo)}")
-    printt("Извлечение признаков...")
-    for idx, file in enumerate(todo):
-        try:
-            if file.endswith(".wav"):
-                wav_path = f"{wavPath}/{file}"
-                out_path = f"{outPath}/{file.replace('wav', 'npy')}"
+    try:
+        printt(f"Фрагментов готовых к обработке - {len(todo)}")
 
-                if os.path.exists(out_path):
-                    continue
+        # Обрабатываем каждый файл
+        for file in tqdm(todo, desc="Извлечение признаков"):
+            try:
+                if file.endswith(".wav"):
+                    wav_path = f"{wavPath}/{file}"
+                    out_path = f"{outPath}/{file.replace('wav', 'npy')}"
 
-                feats = readwave(wav_path, normalize=saved_cfg.task.normalize)
-                padding_mask = torch.BoolTensor(feats.shape).fill_(False)
-                inputs = {
-                    "source": (feats.half().to(device) if is_half and device not in ["mps", "cpu"] else feats.to(device)),
-                    "padding_mask": padding_mask.to(device),
-                    "output_layer": 12,
-                }
-                with torch.no_grad():
-                    logits = model.extract_features(**inputs)
-                    feats = logits[0]
+                    # Пропускаем файл, если признаки уже извлечены
+                    if os.path.exists(out_path):
+                        continue
 
-                feats = feats.squeeze(0).float().cpu().numpy()
-                if np.isnan(feats).sum() == 0:
-                    np.save(out_path, feats, allow_pickle=False)
-                else:
-                    printt(f"Ошибка: Файл {file} содержит некорректные значения (NaN).")
-                if idx % n == 0:
-                    printt(f"{idx}/{len(todo)} | {feats.shape}")
-        except:
-            printt(traceback.format_exc())
-    printt("Все признаки извлечены!")
+                    # Читаем аудиофайл и преобразуем в тензор
+                    feats = readwave(wav_path)
+                    padding_mask = torch.BoolTensor(feats.shape).fill_(False)
+
+                    # Подготавливаем входные данные для модели
+                    inputs = {
+                        "source": feats.to(device),
+                        "padding_mask": padding_mask.to(device),
+                        "output_layer": 12,
+                    }
+
+                    # Извлекаем признаки с помощью модели
+                    with torch.no_grad():
+                        logits = model.extract_features(**inputs)
+                        feats = logits[0]
+
+                    # Сохраняем признаки в файл
+                    feats = feats.squeeze(0).float().cpu().numpy()
+                    if np.isnan(feats).sum() == 0:
+                        np.save(out_path, feats, allow_pickle=False)
+                    else:
+                        raise TypeError(f"Ошибка: Файл {file} содержит некорректные значения (NaN).")
+            except:
+                raise RuntimeError(traceback.format_exc())
+
+        printt("Все признаки извлечены!")
+    except Exception as e:
+        raise RuntimeError(f"Ошибка! {e}")

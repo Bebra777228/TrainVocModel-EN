@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import traceback
+from tqdm import tqdm
 
 import numpy as np
 
@@ -12,23 +13,20 @@ from rvc.lib.rmvpe import RMVPE
 
 logging.getLogger("numba").setLevel(logging.WARNING)
 
-n_part = int(sys.argv[1])
-i_part = int(sys.argv[2])
-i_gpu = sys.argv[3]
-exp_dir = sys.argv[4]
-is_half = sys.argv[5]
-f0_method = sys.argv[6]
+# Получаем аргументы командной строки
+exp_dir = sys.argv[1]  # Директория с данными
+f0_method = sys.argv[2]  # Метод извлечения F0
 
-os.environ["CUDA_VISIBLE_DEVICES"] = str(i_gpu)
+# Устанавливаем видимую GPU
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 f = open(f"{exp_dir}/logfile.log", "a+")
 
-
+# Функция для вывода и записи в лог
 def printt(strr):
     print(strr)
     f.write(f"{strr}\n")
     f.flush()
-
 
 # Класс для извлечения и обработки F0
 class FeatureInput(object):
@@ -80,16 +78,13 @@ class FeatureInput(object):
                 "3. Датасет слишком короткий (менее 5 секунд).\n"
                 "4. Датасет слишком длинный (более 1 часа)."
             )
-            printt(error_message)
-            sys.exit(1)
+            raise FileNotFoundError(error_message)
         else:
             printt(f"Фрагментов готовых к обработке - {len(paths)}")
-            printt(f"Извлечение тона методом '{f0_method}'...")
-            n = max(len(paths) // 5, 1)  # Определяем шаг для вывода прогресса
-            for idx, (inp_path, opt_path1, opt_path2) in enumerate(paths):
+
+            # Обрабатываем каждый файл
+            for idx, (inp_path, opt_path1, opt_path2) in enumerate(tqdm(paths, desc="Извлечение тона")):
                 try:
-                    if idx % n == 0:
-                        printt(f"{idx}/{len(paths)}")  # Вывод прогресса
                     # Пропускаем, если файлы уже существуют
                     if os.path.exists(opt_path1 + ".npy") == True and os.path.exists(opt_path2 + ".npy") == True:
                         continue
@@ -98,9 +93,9 @@ class FeatureInput(object):
                     coarse_pit = self.coarse_f0(featur_pit)  # Квантование F0
                     np.save(opt_path1, coarse_pit, allow_pickle=False)  # Сохранение квантованного F0
                 except:
-                    printt(f"Ошибка извлечения тона!\nФрагмент - {idx}\nФайл - {inp_path}\n{traceback.format_exc()}")
+                    raise RuntimeError(f"Ошибка извлечения тона!\nФрагмент - {idx}\nФайл - {inp_path}\n{traceback.format_exc()}")
 
-
+# Основной блок выполнения
 if __name__ == "__main__":
     featureInput = FeatureInput()
     paths = []
@@ -121,8 +116,8 @@ if __name__ == "__main__":
         opt_path2 = f"{opt_root2}/{name}"
         paths.append([inp_path, opt_path1, opt_path2])
     try:
-        featureInput.go(paths[i_part::n_part], f0_method)  # Обработка файлов
+        featureInput.go(paths, f0_method)  # Обработка файлов
         printt("Тон извлечен!")
         printt("\n\n")
     except:
-        printt(f"Ошибка извлечения тона!\n{traceback.format_exc()}")
+        raise RuntimeError(f"Ошибка извлечения тона!\n{traceback.format_exc()}")

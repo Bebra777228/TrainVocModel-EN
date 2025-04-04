@@ -13,17 +13,23 @@ sys.path.append(os.getcwd())
 from rvc.lib.audio import load_audio
 from rvc.train.preprocess.slicer import Slicer
 
-inp_root = sys.argv[1]
-sr = int(sys.argv[2])
-n_p = int(sys.argv[3])
-exp_dir = sys.argv[4]
-noparallel = sys.argv[5] == "True"
-per = float(sys.argv[6])
-sr_trgt = sr
+# Парсинг аргументов командной строки
+exp_dir = sys.argv[1]  # Директория для сохранения результатов
+input_root = sys.argv[2]  # Директория с входными аудиофайлами
+percentage = float(sys.argv[3])  # Длина сегмента в секундах
+sample_rate = int(sys.argv[4])  # Частота дискретизации
+normalize = sys.argv[5] == "True"  # Флаг для включения/выключения нормализации
+
+# Константы
+RES_TYPE = "soxr_vhq"  # Тип ресемплинга
+SAMPLE_RATE_16K = 16000  # Частота дискретизации 16 кГц
+sr_target = sample_rate  # Целевая частота дискретизации
+num_processes = os.cpu_count()  # Количество процессов
 
 f = open(f"{exp_dir}/logfile.log", "a+")
 
 
+# Функция для вывода и логирования сообщений
 def printt(strr):
     print(strr)
     f.write(f"{strr}\n")
@@ -31,67 +37,75 @@ def printt(strr):
 
 
 class PreProcess:
-    def __init__(self, sr, sr_trgt, exp_dir, per=3.0):
+    def __init__(self, sample_rate, sr_target, exp_dir, percentage=3.0, normalize=True):
+        # Директории для сохранения обработанных аудиофайлов
         self.gt_wavs_dir = os.path.join(exp_dir, "data", "sliced_audios")
         self.wavs16k_dir = os.path.join(exp_dir, "data", "sliced_audios_16k")
 
+        # Создаем директории, если они не существуют
         os.makedirs(self.gt_wavs_dir, exist_ok=True)
         os.makedirs(self.wavs16k_dir, exist_ok=True)
 
+        # Инициализация Slicer для нарезки аудио
         self.slicer = Slicer(
-            sr=sr,
+            sr=sample_rate,
             threshold=-42,
             min_length=1500,
             min_interval=400,
             hop_size=15,
             max_sil_kept=500,
         )
-        self.sr = sr
-        self.bh, self.ah = signal.butter(N=5, Wn=48, btype="high", fs=self.sr)
-        self.per = per
-        self.overlap = 0.3
-        self.tail = self.per + self.overlap
-        self.max = 0.9
-        self.alpha = 0.75
-        self.sr_trgt = sr_trgt
+        self.sample_rate = sample_rate  # Частота дискретизации
+        self.b_high, self.a_high = signal.butter(N=5, Wn=48, btype="high", fs=self.sample_rate)  # Фильтр высоких частот
+        self.percentage = percentage  # Длина сегмента
+        self.overlap = 0.3  # Перекрытие между сегментами
+        self.tail = self.percentage + self.overlap  # Хвост для обработки
+        self.max_amplitude = 0.9  # Максимальное значение для нормализации
+        self.alpha = 0.75  # Коэффициент для нормализации
+        self.sr_target = sr_target  # Целевая частота дискретизации
+        self.normalize = normalize  # Флаг для включения/выключения нормализации
 
     def norm_write(self, tmp_audio, idx0, idx1):
+        # Проверка на превышение максимального уровня сигнала
         tmp_max = np.abs(tmp_audio).max()
         if tmp_max > 2.5:
             printt(f"{idx0}-{idx1}-{tmp_max}-filtered")
             return
 
-        tmp_audio = librosa.resample(tmp_audio, orig_sr=self.sr, target_sr=self.sr_trgt, res_type="soxr_vhq")
+        # Ресемплирование аудио до целевой частоты дискретизации
+        tmp_audio = librosa.resample(tmp_audio, orig_sr=self.sample_rate, target_sr=self.sr_target, res_type=RES_TYPE)
 
-        tmp_audio = (tmp_audio / tmp_max * (self.max * self.alpha)) + (1 - self.alpha) * tmp_audio
+        # Применение нормализации
+        if self.normalize:
+            tmp_audio = (tmp_audio / tmp_max * (self.max_amplitude * self.alpha)) + (1 - self.alpha) * tmp_audio
 
-        wavfile.write(
-            f"{self.gt_wavs_dir}/{idx0}_{idx1}.wav",
-            self.sr_trgt,
-            tmp_audio.astype(np.float32),
-        )
+        # Сохранение аудио в формате WAV
+        wavfile.write(f"{self.gt_wavs_dir}/{idx0}_{idx1}.wav", self.sr_target, tmp_audio.astype(np.float32))
 
-        tmp_audio = librosa.resample(tmp_audio, orig_sr=self.sr, target_sr=16000, res_type="soxr_vhq")
+        # Ресемплирование аудио до 16 кГц
+        tmp_audio = librosa.resample(tmp_audio, orig_sr=self.sample_rate, target_sr=SAMPLE_RATE_16K, res_type=RES_TYPE)
 
-        wavfile.write(
-            f"{self.wavs16k_dir}/{idx0}_{idx1}.wav",
-            16000,
-            tmp_audio.astype(np.float32),
-        )
+        # Сохранение аудио в формате WAV (16 кГц)
+        wavfile.write(f"{self.wavs16k_dir}/{idx0}_{idx1}.wav", SAMPLE_RATE_16K, tmp_audio.astype(np.float32))
 
     def pipeline(self, path, idx0):
         try:
-            audio = load_audio(path, self.sr_trgt)
-            audio = signal.lfilter(self.bh, self.ah, audio)
+            # Загрузка аудио
+            audio = load_audio(path, self.sr_target)
+            # Применение фильтра высоких частот
+            audio = signal.lfilter(self.b_high, self.a_high, audio)
 
             idx1 = 0
+            # Нарезка аудио на сегменты
             for audio in self.slicer.slice(audio):
                 i = 0
-                while 1:
-                    start = int(self.sr * (self.per - self.overlap) * i)
+                while True:
+                    # Вычисление начальной точки сегмента
+                    start = int(self.sample_rate * (self.percentage - self.overlap) * i)
                     i += 1
-                    if len(audio[start:]) > self.tail * self.sr:
-                        tmp_audio = audio[start : start + int(self.per * self.sr)]
+                    # Проверка, остался ли хвост аудио
+                    if len(audio[start:]) > self.tail * self.sample_rate:
+                        tmp_audio = audio[start : start + int(self.percentage * self.sample_rate)]
                         self.norm_write(tmp_audio, idx0, idx1)
                         idx1 += 1
                     else:
@@ -101,39 +115,39 @@ class PreProcess:
                         break
             printt(f"{path}\t-> Success")
         except Exception as e:
-            printt(f"{path}\t-> {traceback.format_exc()}")
+            raise RuntimeError(f"{path}\t-> {traceback.format_exc()}")
 
     def pipeline_mp(self, infos):
+        # Обработка списка файлов
         for path, idx0 in infos:
             self.pipeline(path, idx0)
 
-    def pipeline_mp_inp_dir(self, inp_root, n_p):
+    def pipeline_mp_inp_dir(self, input_root, num_processes):
+        printt("Обработка датасета...")
         try:
-            infos = [(os.path.join(inp_root, name), idx) for idx, name in enumerate(sorted(list(os.listdir(inp_root))))]
-            if noparallel:
-                for i in range(n_p):
-                    self.pipeline_mp(infos[i::n_p])
-            else:
-                ps = []
-                for i in range(n_p):
-                    p = multiprocessing.Process(target=self.pipeline_mp, args=(infos[i::n_p],))
-                    ps.append(p)
-                    p.start()
-                for p in ps:
-                    p.join()
+            # Сбор информации о файлах в директории
+            infos = [(os.path.join(input_root, name), idx) for idx, name in enumerate(sorted(list(os.listdir(input_root))))]
+
+            # Параллельная обработка
+            ps = []
+            for i in range(num_processes):
+                p = multiprocessing.Process(target=self.pipeline_mp, args=(infos[i::num_processes],))
+                ps.append(p)
+                p.start()
+            for p in ps:
+                p.join()
+            printt("Обработка успешно завершена!")
+            printt("\n\n")
         except Exception as e:
-            printt(f"Ошибка! {traceback.format_exc()}")
-            sys.exit(1)
+            raise RuntimeError(f"Ошибка! {traceback.format_exc()}")
 
 
-def preprocess_trainset(inp_root, sr, n_p, exp_dir, per):
-    printt("Обработка датасета...")
-    pp = PreProcess(sr, sr_trgt, exp_dir, per)
-
-    pp.pipeline_mp_inp_dir(inp_root, n_p)
-    printt("Обработка успешно завершена!")
+def preprocess_trainset(input_root, sample_rate, num_processes, exp_dir, percentage, normalize):
+    # Инициализация и запуск обработки
+    pp = PreProcess(sample_rate, sr_target, exp_dir, percentage, normalize)
+    pp.pipeline_mp_inp_dir(input_root, num_processes)
 
 
 if __name__ == "__main__":
-    preprocess_trainset(inp_root, sr, n_p, exp_dir, per)
-    printt("\n\n")
+    # Запуск препроцессинга
+    preprocess_trainset(input_root, sample_rate, num_processes, exp_dir, percentage, normalize)

@@ -6,6 +6,7 @@ librosa==0.11.0
 ffmpeg-python==0.2.0
 
 # Визуализация
+tqdm
 tensorboard
 tensorboardX
 matplotlib==3.10.1
