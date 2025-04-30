@@ -35,9 +35,9 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from rvc.lib.algorithm.commons import clip_grad_value_, slice_segments
-from rvc.lib.algorithm.models import MultiPeriodDiscriminatorV2 as Discriminator
-from rvc.lib.algorithm.models import SynthesizerTrnMs768NSFsid as Synthesizer
+from rvc.lib.algorithm.commons import grad_norm, slice_segments
+from rvc.lib.algorithm.discriminators import MultiPeriodDiscriminator
+from rvc.lib.algorithm.synthesizers import Synthesizer
 from rvc.train.data_utils import DistributedBucketSampler as Sampler
 from rvc.train.data_utils import TextAudioCollateMultiNSFsid as AudioCollate
 from rvc.train.data_utils import TextAudioLoaderMultiNSFsid as AudioLoader
@@ -135,10 +135,13 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
         hps.data.filter_length // 2 + 1,
         hps.train.segment_size // hps.data.hop_length,
         **hps.model,
-        is_half=hps.train.fp16_run,
+        use_f0=True,
         sr=hps.sample_rate,
+        vocoder="HiFi-GAN",
+        checkpointing=False,
+        randomized=False,
     )
-    net_d = Discriminator(hps.model.use_spectral_norm)
+    net_d = MultiPeriodDiscriminator(hps.model.use_spectral_norm, checkpointing=False)
 
     if torch.cuda.is_available():
         net_g = net_g.cuda(rank)
@@ -253,7 +256,7 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, scaler, loaders, logger, 
                 hps.data.mel_fmin,
                 hps.data.mel_fmax,
             )
-            y_mel = slice_segments(mel, ids_slice, hps.train.segment_size // hps.data.hop_length)
+            y_mel = slice_segments(mel, ids_slice, hps.train.segment_size // hps.data.hop_length, dim=3)
             with autocast(device_type="cuda", enabled=False):
                 y_hat_mel = mel_spectrogram_torch(
                     y_hat.float().squeeze(1),
@@ -267,7 +270,8 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, scaler, loaders, logger, 
                 )
             if hps.train.fp16_run == True:
                 y_hat_mel = y_hat_mel.half()
-            wave = slice_segments(wave, ids_slice * hps.data.hop_length, hps.train.segment_size)
+
+            wave = slice_segments(wave, ids_slice * hps.data.hop_length, hps.train.segment_size, dim=3)
 
             y_d_hat_r, y_d_hat_g, _, _ = net_d(wave, y_hat.detach())
             with autocast(device_type="cuda", enabled=False):
@@ -275,7 +279,7 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, scaler, loaders, logger, 
         optim_d.zero_grad()
         scaler.scale(loss_disc).backward()
         scaler.unscale_(optim_d)
-        grad_norm_d = clip_grad_value_(net_d.parameters(), None)
+        grad_norm_d = grad_norm(net_d.parameters(), None)
         scaler.step(optim_d)
 
         with autocast(device_type="cuda", enabled=hps.train.fp16_run):
@@ -289,7 +293,7 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, scaler, loaders, logger, 
         optim_g.zero_grad()
         scaler.scale(loss_gen_all).backward()
         scaler.unscale_(optim_g)
-        grad_norm_g = clip_grad_value_(net_g.parameters(), None)
+        grad_norm_g = grad_norm(net_g.parameters(), None)
         scaler.step(optim_g)
         scaler.update()
 
