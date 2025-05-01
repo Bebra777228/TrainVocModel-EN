@@ -43,8 +43,8 @@ from rvc.train.data_utils import TextAudioCollateMultiNSFsid as AudioCollate
 from rvc.train.data_utils import TextAudioLoaderMultiNSFsid as AudioLoader
 from rvc.train.extract.extract_model import extract_model
 from rvc.train.losses import discriminator_loss, feature_loss, generator_loss, kl_loss
-from rvc.train.mel_processing import mel_spectrogram_torch, spec_to_mel_torch
-from rvc.train.utils import get_hparams, get_logger, latest_checkpoint_path, load_checkpoint, save_checkpoint, summarize
+from rvc.train.mel_processing import mel_spectrogram_torch, spec_to_mel_torch, MultiScaleMelSpectrogramLoss
+from rvc.train.utils import get_hparams, get_logger, latest_checkpoint_path, load_checkpoint, save_checkpoint, summarize, plot_spectrogram_to_numpy
 
 hps = get_hparams()
 os.environ["CUDA_VISIBLE_DEVICES"] = hps.gpus.replace("-", ",")
@@ -95,6 +95,8 @@ def main():
 
 def run(rank, n_gpus, hps, logger: logging.Logger):
     global global_step
+    
+    writer_eval = None
     if rank == 0:
         writer_eval = SummaryWriter(log_dir=os.path.join(hps.model_dir, "eval"))
 
@@ -115,7 +117,7 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
     train_sampler = Sampler(
         train_dataset,
         hps.train.batch_size * n_gpus,
-        [100, 200, 300, 400, 500, 600, 700, 800, 900],
+        [50, 100, 200, 300, 400, 500, 600, 700, 800, 900],
         num_replicas=n_gpus,
         rank=rank,
         shuffle=True,
@@ -139,7 +141,7 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
         sr=hps.sample_rate,
         vocoder="HiFi-GAN",
         checkpointing=False,
-        randomized=False,
+        randomized=True,
     )
     net_d = MultiPeriodDiscriminator(hps.model.use_spectral_norm, checkpointing=False)
 
@@ -160,12 +162,11 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
         eps=hps.train.eps,
     )
 
+    fn_mel_loss = MultiScaleMelSpectrogramLoss(sample_rate=hps.sample_rate)
+
     if torch.cuda.is_available():
         net_g = DDP(net_g, device_ids=[rank])
         net_d = DDP(net_d, device_ids=[rank])
-    else:
-        net_g = DDP(net_g)
-        net_d = DDP(net_d)
 
     try:
         _, _, _, epoch_str = load_checkpoint(latest_checkpoint_path(hps.model_dir, "D_*.pth"), net_d, optim_d)
@@ -192,8 +193,6 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
     scheduler_g = torch.optim.lr_scheduler.ExponentialLR(optim_g, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2)
     scheduler_d = torch.optim.lr_scheduler.ExponentialLR(optim_d, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2)
 
-    scaler = GradScaler(enabled=hps.train.fp16_run)
-
     for epoch in range(epoch_str, hps.total_epoch + 1):
         train_and_evaluate(
             hps,
@@ -201,16 +200,16 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
             epoch,
             [net_g, net_d],
             [optim_g, optim_d],
-            scaler,
             [train_loader, None],
             logger,
             [writer_eval],
+            fn_mel_loss
         )
         scheduler_g.step()
         scheduler_d.step()
 
 
-def train_and_evaluate(hps, rank, epoch, nets, optims, scaler, loaders, logger, writers):
+def train_and_evaluate(hps, rank, epoch, nets, optims, loaders, logger, writers, fn_mel_loss):
     global global_step
 
     if writers is not None:
@@ -221,7 +220,7 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, scaler, loaders, logger, 
     net_g, net_d = nets
     optim_g, optim_d = optims
 
-    train_loader, eval_loader = loaders
+    train_loader = loaders[0] if loaders is not None else None
     train_loader.batch_sampler.set_epoch(epoch)
 
     net_g.train()
@@ -229,81 +228,57 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, scaler, loaders, logger, 
 
     data_iterator = enumerate(train_loader)
     for batch_idx, info in data_iterator:
-        phone, phone_lengths, pitch, pitchf, spec, spec_lengths, wave, wave_lengths, sid = info
         if torch.cuda.is_available():
-            phone = phone.cuda(rank, non_blocking=True)
-            phone_lengths = phone_lengths.cuda(rank, non_blocking=True)
-            pitch = pitch.cuda(rank, non_blocking=True)
-            pitchf = pitchf.cuda(rank, non_blocking=True)
-            sid = sid.cuda(rank, non_blocking=True)
-            spec = spec.cuda(rank, non_blocking=True)
-            spec_lengths = spec_lengths.cuda(rank, non_blocking=True)
-            wave = wave.cuda(rank, non_blocking=True)
+            info = [tensor.cuda(rank, non_blocking=True) for tensor in info]
 
-        with autocast(device_type="cuda", enabled=hps.train.fp16_run):
-            (
-                y_hat,
-                ids_slice,
-                x_mask,
-                z_mask,
-                (z, z_p, m_p, logs_p, m_q, logs_q),
-            ) = net_g(phone, phone_lengths, pitch, pitchf, spec, spec_lengths, sid)
-            mel = spec_to_mel_torch(
-                spec,
-                hps.data.filter_length,
-                hps.data.n_mel_channels,
-                hps.data.sampling_rate,
-                hps.data.mel_fmin,
-                hps.data.mel_fmax,
-            )
-            y_mel = slice_segments(mel, ids_slice, hps.train.segment_size // hps.data.hop_length, dim=3)
-            with autocast(device_type="cuda", enabled=False):
-                y_hat_mel = mel_spectrogram_torch(
-                    y_hat.float().squeeze(1),
-                    hps.data.filter_length,
-                    hps.data.n_mel_channels,
-                    hps.data.sampling_rate,
-                    hps.data.hop_length,
-                    hps.data.win_length,
-                    hps.data.mel_fmin,
-                    hps.data.mel_fmax,
-                )
-            if hps.train.fp16_run == True:
-                y_hat_mel = y_hat_mel.half()
+        phone, phone_lengths, pitch, pitchf, spec, spec_lengths, wave, wave_lengths, sid = info
+        model_output = net_g(phone, phone_lengths, pitch, pitchf, spec, spec_lengths, sid)
+        y_hat, ids_slice, x_mask, z_mask, (z, z_p, m_p, logs_p, m_q, logs_q) = model_output
 
-            wave = slice_segments(wave, ids_slice * hps.data.hop_length, hps.train.segment_size, dim=3)
+        wave = slice_segments(wave, ids_slice * hps.data.hop_length, hps.train.segment_size, dim=3)
 
-            y_d_hat_r, y_d_hat_g, _, _ = net_d(wave, y_hat.detach())
-            with autocast(device_type="cuda", enabled=False):
-                loss_disc, losses_disc_r, losses_disc_g = discriminator_loss(y_d_hat_r, y_d_hat_g)
+        # discriminator loss
+        y_d_hat_r, y_d_hat_g, _, _ = net_d(wave, y_hat.detach())
+        loss_disc, _, _ = discriminator_loss(y_d_hat_r, y_d_hat_g)
         optim_d.zero_grad()
-        scaler.scale(loss_disc).backward()
-        scaler.unscale_(optim_d)
-        grad_norm_d = grad_norm(net_d.parameters(), None)
-        scaler.step(optim_d)
+        loss_disc.backward()
+        grad_norm_d = grad_norm(net_d.parameters())
+        optim_d.step()
 
-        with autocast(device_type="cuda", enabled=hps.train.fp16_run):
-            y_d_hat_r, y_d_hat_g, fmap_r, fmap_g = net_d(wave, y_hat)
-            with autocast(device_type="cuda", enabled=False):
-                loss_mel = F.l1_loss(y_mel, y_hat_mel) * hps.train.c_mel
-                loss_kl = kl_loss(z_p, logs_q, m_p, logs_p, z_mask) * hps.train.c_kl
-                loss_fm = feature_loss(fmap_r, fmap_g)
-                loss_gen, losses_gen = generator_loss(y_d_hat_g)
-                loss_gen_all = loss_gen + loss_fm + loss_mel + loss_kl
+        # generator loss
+        _, y_d_hat_g, fmap_r, fmap_g = net_d(wave, y_hat)
+        loss_mel = fn_mel_loss(wave, y_hat) * hps.train.c_mel / 3.0
+        loss_kl = kl_loss(z_p, logs_q, m_p, logs_p, z_mask) * hps.train.c_kl
+        loss_fm = feature_loss(fmap_r, fmap_g)
+        loss_gen, _ = generator_loss(y_d_hat_g)
+        loss_gen_all = loss_gen + loss_fm + loss_mel + loss_kl
         optim_g.zero_grad()
-        scaler.scale(loss_gen_all).backward()
-        scaler.unscale_(optim_g)
-        grad_norm_g = grad_norm(net_g.parameters(), None)
-        scaler.step(optim_g)
-        scaler.update()
+        loss_gen_all.backward()
+        grad_norm_g = grad_norm(net_g.parameters())
+        optim_g.step()
 
         global_step += 1
 
-    if rank == 0 and epoch % hps.train.log_interval == 0:
-        if loss_mel > 75:
-            loss_mel = 75
-        if loss_kl > 9:
-            loss_kl = 9
+    if rank == 0:
+        mel = spec_to_mel_torch(
+            spec,
+            hps.data.filter_length,
+            hps.data.n_mel_channels,
+            hps.sample_rate,
+            hps.data.mel_fmin,
+            hps.data.mel_fmax,
+        )
+        y_mel = slice_segments(mel, ids_slice, hps.train.segment_size // hps.data.hop_length, dim=3)
+        y_hat_mel = mel_spectrogram_torch(
+            y_hat.float().squeeze(1),
+            hps.data.filter_length,
+            hps.data.n_mel_channels,
+            hps.sample_rate,
+            hps.data.hop_length,
+            hps.data.win_length,
+            hps.data.mel_fmin,
+            hps.data.mel_fmax,
+        )
 
         scalar_dict = {
             "grad/norm_d": grad_norm_d,
@@ -314,7 +289,14 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, scaler, loaders, logger, 
             "loss/g/mel": loss_mel,
             "loss/g/kl": loss_kl,
         }
-        summarize(writer=writer, epoch=epoch, scalars=scalar_dict)
+        image_dict = {
+            "slice/mel_real": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
+            "slice/mel_fake": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),
+            "all/mel": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),
+        }
+
+        if epoch % hps.train.log_interval == 0:
+            summarize(writer=writer, tracking=epoch, scalars=scalar_dict, images=image_dict)
 
     if rank == 0 and epoch % hps.save_every_epoch == 0:
         save_checkpoint(

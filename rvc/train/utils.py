@@ -76,13 +76,11 @@ def latest_checkpoint_path(dir_path, regex="G_*.pth"):
     return x
 
 
-def summarize(
-    writer,
-    epoch,
-    scalars={},
-):
+def summarize(writer, tracking, scalars={}, images={}):
     for k, v in scalars.items():
-        writer.add_scalar(k, v, epoch, double_precision=True)
+        writer.add_scalar(k, v, tracking, double_precision=True)
+    for k, v in images.items():
+        writer.add_image(k, v, tracking, dataformats="HWC")
 
 
 def plot_spectrogram_to_numpy(spectrogram):
@@ -99,8 +97,8 @@ def plot_spectrogram_to_numpy(spectrogram):
     plt.tight_layout()
 
     fig.canvas.draw()
-    data = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-    data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    buf = fig.canvas.buffer_rgba()
+    data = np.asarray(buf, dtype=np.uint8)
     plt.close(fig)
     return data
 
