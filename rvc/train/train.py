@@ -279,18 +279,18 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, loaders, logger, writers,
 
     if rank == 0 and epoch % hps.train.log_interval == 0:
         scalar_dict = {
-            "gradient/discriminator_norm": grad_norm_d,
-            "gradient/generator_norm": grad_norm_g,
-            "loss/discriminator/total": loss_disc,
-            "loss/generator/total": loss_gen_all,
-            "loss/generator/feature_matching": loss_fm,
-            "loss/generator/mel_spectrogram": loss_mel,
-            "loss/generator/kl_divergence": loss_kl,
+            "grad/norm_d": grad_norm_d,
+            "grad/norm_g": grad_norm_g,
+            "total_loss/d": loss_disc,
+            "total_loss/g": loss_gen_all,
+            "loss/g/fm": loss_fm,
+            "loss/g/mel": loss_mel,
+            "loss/g/kl": loss_kl,
         }
         image_dict = {
-            "spectrogram/full_mel": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),
-            "spectrogram/real_mel_slice": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
-            "spectrogram/generated_mel_slice": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),
+            "spec/full_mel": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),
+            "spec/real_mel": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
+            "spec/generated_mel": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),
         }
         summarize(writer=writer, tracking=epoch, scalars=scalar_dict, images=image_dict)
 
