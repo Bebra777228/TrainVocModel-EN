@@ -41,7 +41,7 @@ def extract_model(hps, ckpt, name, epoch, step, sample_rate, model_dir, final_sa
             hps.model.upsample_kernel_sizes,
             hps.model.spk_embed_dim,
             hps.model.gin_channels,
-            hps.data.sampling_rate,
+            hps.data.sample_rate,
         ]
 
         opt["model_name"] = name
