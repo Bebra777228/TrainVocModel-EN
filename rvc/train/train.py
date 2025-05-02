@@ -3,6 +3,8 @@ import os
 import sys
 import warnings
 
+os.environ["USE_LIBUV"] = "0" if os.name == "nt" else "1"
+
 # Настройка уровня логирования для различных библиотек
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 logging.getLogger("tensorflow").setLevel(logging.WARNING)
@@ -101,12 +103,7 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
         writer_eval = SummaryWriter(log_dir=os.path.join(hps.model_dir, "eval"))
 
     backend = "gloo" if os.name == "nt" or not torch.cuda.is_available() else "nccl"
-    if rank == 0:
-        logger.info(f"Используемый бэкенд распределенных вычислений: {backend}")
-    try:
-        dist.init_process_group(backend=backend, init_method="env://", world_size=n_gpus, rank=rank)
-    except:
-        dist.init_process_group(backend=backend, init_method="env://?use_libuv=False", world_size=n_gpus, rank=rank)
+    dist.init_process_group(backend=backend, init_method="env://", world_size=n_gpus, rank=rank)
 
     torch.manual_seed(hps.train.seed)
     if torch.cuda.is_available():
@@ -237,29 +234,7 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, loaders, logger, writers,
 
         wave = slice_segments(wave, ids_slice * hps.data.hop_length, hps.train.segment_size, dim=3)
 
-        # discriminator loss
-        y_d_hat_r, y_d_hat_g, _, _ = net_d(wave, y_hat.detach())
-        loss_disc, _, _ = discriminator_loss(y_d_hat_r, y_d_hat_g)
-        optim_d.zero_grad()
-        loss_disc.backward()
-        grad_norm_d = grad_norm(net_d.parameters())
-        optim_d.step()
-
-        # generator loss
-        _, y_d_hat_g, fmap_r, fmap_g = net_d(wave, y_hat)
-        loss_mel = fn_mel_loss(wave, y_hat) * hps.train.c_mel / 3.0
-        loss_kl = kl_loss(z_p, logs_q, m_p, logs_p, z_mask) * hps.train.c_kl
-        loss_fm = feature_loss(fmap_r, fmap_g)
-        loss_gen, _ = generator_loss(y_d_hat_g)
-        loss_gen_all = loss_gen + loss_fm + loss_mel + loss_kl
-        optim_g.zero_grad()
-        loss_gen_all.backward()
-        grad_norm_g = grad_norm(net_g.parameters())
-        optim_g.step()
-
-        global_step += 1
-
-    if rank == 0:
+        # Mel-Spectrogram
         mel = spec_to_mel_torch(
             spec,
             hps.data.filter_length,
@@ -280,23 +255,44 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, loaders, logger, writers,
             hps.data.mel_fmax,
         )
 
+        # Discriminator loss
+        y_d_hat_r, y_d_hat_g, _, _ = net_d(wave, y_hat.detach())
+        loss_disc, _, _ = discriminator_loss(y_d_hat_r, y_d_hat_g)
+        optim_d.zero_grad()
+        loss_disc.backward()
+        grad_norm_d = grad_norm(net_d.parameters())
+        optim_d.step()
+
+        # Generator loss
+        _, y_d_hat_g, fmap_r, fmap_g = net_d(wave, y_hat)
+        loss_mel = fn_mel_loss(wave, y_hat) * hps.train.c_mel / 3.0
+        loss_kl = kl_loss(z_p, logs_q, m_p, logs_p, z_mask) * hps.train.c_kl
+        loss_fm = feature_loss(fmap_r, fmap_g)
+        loss_gen, _ = generator_loss(y_d_hat_g)
+        loss_gen_all = loss_gen + loss_fm + loss_mel + loss_kl
+        optim_g.zero_grad()
+        loss_gen_all.backward()
+        grad_norm_g = grad_norm(net_g.parameters())
+        optim_g.step()
+
+        global_step += 1
+
+    if rank == 0 and epoch % hps.train.log_interval == 0:
         scalar_dict = {
-            "grad/norm_d": grad_norm_d,
-            "grad/norm_g": grad_norm_g,
-            "loss/g/total": loss_gen_all,
-            "loss/d/total": loss_disc,
-            "loss/g/fm": loss_fm,
-            "loss/g/mel": loss_mel,
-            "loss/g/kl": loss_kl,
+            "gradient/discriminator_norm": grad_norm_d,
+            "gradient/generator_norm": grad_norm_g,
+            "loss/discriminator/total": loss_disc,
+            "loss/generator/total": loss_gen_all,
+            "loss/generator/feature_matching": loss_fm,
+            "loss/generator/mel_spectrogram": loss_mel,
+            "loss/generator/kl_divergence": loss_kl,
         }
         image_dict = {
-            "slice/mel_real": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
-            "slice/mel_fake": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),
-            "all/mel": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),
+            "spectrogram/full_mel": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),
+            "spectrogram/real_mel_slice": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
+            "spectrogram/generated_mel_slice": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),
         }
-
-        if epoch % hps.train.log_interval == 0:
-            summarize(writer=writer, tracking=epoch, scalars=scalar_dict, images=image_dict)
+        summarize(writer=writer, tracking=epoch, scalars=scalar_dict, images=image_dict)
 
     if rank == 0 and epoch % hps.save_every_epoch == 0:
         save_checkpoint(
