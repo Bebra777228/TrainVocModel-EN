@@ -113,7 +113,7 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
     train_dataset = AudioLoader(hps.data.training_files, hps.data)
     train_sampler = Sampler(
         train_dataset,
-        hps.train.batch_size * n_gpus,
+        hps.batch_size * n_gpus,
         [50, 100, 200, 300, 400, 500, 600, 700, 800, 900],
         num_replicas=n_gpus,
         rank=rank,
@@ -277,7 +277,7 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, loaders, logger, writers,
 
         global_step += 1
 
-    if rank == 0 and epoch % hps.train.log_interval == 0:
+    if rank == 0 and hps.train.log_tracking % hps.train.log_interval == 0:
         scalar_dict = {
             "gradient/discriminator_norm": grad_norm_d,
             "gradient/generator_norm": grad_norm_g,
@@ -292,7 +292,7 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, loaders, logger, writers,
             "spectrogram/real_mel_slice": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
             "spectrogram/generated_mel_slice": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),
         }
-        summarize(writer=writer, tracking=epoch, scalars=scalar_dict, images=image_dict)
+        summarize(writer=writer, tracking=hps.train.log_tracking, scalars=scalar_dict, images=image_dict)
 
     if rank == 0 and epoch % hps.save_every_epoch == 0:
         save_checkpoint(

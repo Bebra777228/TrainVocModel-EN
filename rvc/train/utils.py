@@ -126,6 +126,7 @@ def get_hparams(init=True):
     parser.add_argument("-m", "--model_name", type=str, required=True)
     parser.add_argument("-sr", "--sample_rate", type=str, required=True)
     parser.add_argument("-sz", "--save_to_zip", type=str, required=True)
+    parser.add_argument("-lt", "--log_tracking", type=str, default="epoch")
 
     args = parser.parse_args()
     name = args.model_name
@@ -143,9 +144,17 @@ def get_hparams(init=True):
     hparams.pretrainG = args.pretrainG
     hparams.pretrainD = args.pretrainD
     hparams.gpus = args.gpus
-    hparams.train.batch_size = args.batch_size
+    hparams.batch_size = args.batch_size
     hparams.sample_rate = args.sample_rate
     hparams.save_to_zip = args.save_to_zip
+
+    if args.log_tracking == "epoch":
+        hparams.hps.train.log_tracking = "epoch"
+        hparams.hps.train.log_interval = "1"
+    else:
+        hparams.hps.train.log_tracking = "global_step"
+        hparams.hps.train.log_interval = "100"
+
     hparams.data.training_files = f"{experiment_dir}/data/filelist.txt"
     return hparams
 
