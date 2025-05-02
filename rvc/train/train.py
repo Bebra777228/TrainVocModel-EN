@@ -110,7 +110,7 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
         torch.cuda.set_device(rank)
 
     collate_fn = TextAudioCollateMultiNSFsid()
-    train_dataset = TextAudioLoaderMultiNSFsid(hps.data.training_files, hps.data)
+    train_dataset = TextAudioLoaderMultiNSFsid(hps.data)
     train_sampler = DistributedBucketSampler(
         train_dataset,
         hps.batch_size * n_gpus,
@@ -277,7 +277,7 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, loaders, logger, writers,
 
         global_step += 1
 
-    if rank == 0 and hps.train.log_tracking % hps.train.log_interval == 0:
+    if rank == 0 and epoch % hps.train.log_interval == 0:
         scalar_dict = {
             "gradient/discriminator_norm": grad_norm_d,
             "gradient/generator_norm": grad_norm_g,
@@ -292,7 +292,7 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, loaders, logger, writers,
             "spectrogram/real_mel_slice": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
             "spectrogram/generated_mel_slice": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),
         }
-        summarize(writer=writer, tracking=hps.train.log_tracking, scalars=scalar_dict, images=image_dict)
+        summarize(writer=writer, tracking=epoch, scalars=scalar_dict, images=image_dict)
 
     if rank == 0 and epoch % hps.save_every_epoch == 0:
         save_checkpoint(
