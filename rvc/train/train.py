@@ -40,9 +40,9 @@ from torch.utils.tensorboard import SummaryWriter
 from rvc.lib.algorithm.commons import grad_norm, slice_segments
 from rvc.lib.algorithm.discriminators import MultiPeriodDiscriminator
 from rvc.lib.algorithm.synthesizers import Synthesizer
-from rvc.train.data_utils import DistributedBucketSampler as Sampler
-from rvc.train.data_utils import TextAudioCollateMultiNSFsid as AudioCollate
-from rvc.train.data_utils import TextAudioLoaderMultiNSFsid as AudioLoader
+from rvc.train.data_utils import DistributedBucketSampler
+from rvc.train.data_utils import TextAudioCollateMultiNSFsid
+from rvc.train.data_utils import TextAudioLoaderMultiNSFsid
 from rvc.train.extract.extract_model import extract_model
 from rvc.train.losses import discriminator_loss, feature_loss, generator_loss, kl_loss
 from rvc.train.mel_processing import mel_spectrogram_torch, spec_to_mel_torch, MultiScaleMelSpectrogramLoss
@@ -109,9 +109,9 @@ def run(rank, n_gpus, hps, logger: logging.Logger):
     if torch.cuda.is_available():
         torch.cuda.set_device(rank)
 
-    collate_fn = AudioCollate()
-    train_dataset = AudioLoader(hps.data.training_files, hps.data)
-    train_sampler = Sampler(
+    collate_fn = TextAudioCollateMultiNSFsid()
+    train_dataset = TextAudioLoaderMultiNSFsid(hps.data.training_files, hps.data)
+    train_sampler = DistributedBucketSampler(
         train_dataset,
         hps.batch_size * n_gpus,
         [50, 100, 200, 300, 400, 500, 600, 700, 800, 900],

@@ -104,14 +104,13 @@ def plot_spectrogram_to_numpy(spectrogram):
 
 
 def load_wav_to_torch(full_path):
-    data, sampling_rate = sf.read(full_path, dtype="float32")
-    return torch.FloatTensor(data), sampling_rate
+    data, sample_rate = sf.read(full_path, dtype="float32")
+    return torch.FloatTensor(data), sample_rate
 
 
 def load_filepaths_and_text(filename, split="|"):
     with open(filename, encoding="utf-8") as f:
-        filepaths_and_text = [line.strip().split(split) for line in f]
-    return filepaths_and_text
+        return [line.strip().split(split) for line in f]
 
 
 def get_hparams(init=True):
@@ -177,9 +176,7 @@ def get_logger(model_dir, filename="train.log"):
 class HParams:
     def __init__(self, **kwargs):
         for k, v in kwargs.items():
-            if type(v) == dict:
-                v = HParams(**v)
-            self[k] = v
+            self[k] = HParams(**v) if isinstance(v, dict) else v
 
     def keys(self):
         return self.__dict__.keys()
@@ -194,13 +191,13 @@ class HParams:
         return len(self.__dict__)
 
     def __getitem__(self, key):
-        return getattr(self, key)
+        return self.__dict__[key]
 
     def __setitem__(self, key, value):
-        return setattr(self, key, value)
+        self.__dict__[key] = value
 
     def __contains__(self, key):
         return key in self.__dict__
 
     def __repr__(self):
-        return self.__dict__.__repr__()
+        return repr(self.__dict__)
