@@ -5,12 +5,9 @@ import logging
 import os
 import sys
 
-import matplotlib.pyplot as plt
-import numpy as np
 import soundfile as sf
 import torch
 
-MATPLOTLIB_FLAG = False
 
 for handler in logging.root.handlers[:]:
     logging.root.removeHandler(handler)
@@ -81,26 +78,6 @@ def summarize(writer, tracking, scalars={}, images={}):
         writer.add_scalar(k, v, tracking, double_precision=True)
     for k, v in images.items():
         writer.add_image(k, v, tracking, dataformats="HWC")
-
-
-def plot_spectrogram_to_numpy(spectrogram):
-    global MATPLOTLIB_FLAG
-    if not MATPLOTLIB_FLAG:
-        plt.switch_backend("Agg")
-        MATPLOTLIB_FLAG = True
-
-    fig, ax = plt.subplots(figsize=(10, 2))
-    im = ax.imshow(spectrogram, aspect="auto", origin="lower", interpolation="none")
-    plt.colorbar(im, ax=ax)
-    plt.xlabel("Frames")
-    plt.ylabel("Channels")
-    plt.tight_layout()
-
-    fig.canvas.draw()
-    buf = fig.canvas.buffer_rgba()
-    data = np.asarray(buf, dtype=np.uint8)
-    plt.close(fig)
-    return data
 
 
 def load_wav_to_torch(full_path):

@@ -46,7 +46,8 @@ from rvc.train.data_utils import TextAudioLoaderMultiNSFsid
 from rvc.train.extract.extract_model import extract_model
 from rvc.train.losses import discriminator_loss, feature_loss, generator_loss, kl_loss
 from rvc.train.mel_processing import mel_spectrogram_torch, spec_to_mel_torch, MultiScaleMelSpectrogramLoss
-from rvc.train.utils import get_hparams, get_logger, latest_checkpoint_path, load_checkpoint, save_checkpoint, summarize, plot_spectrogram_to_numpy
+from rvc.train.utils import get_hparams, get_logger, latest_checkpoint_path, load_checkpoint, save_checkpoint, summarize
+from rvc.train.visualization import plot_spectrogram_to_numpy, plot_pitch_to_numpy, calculate_snr, calculate_mse
 
 hps = get_hparams()
 os.environ["CUDA_VISIBLE_DEVICES"] = hps.gpus.replace("-", ",")
@@ -292,11 +293,15 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, loaders, logger, writers,
             "loss/g/kl": loss_kl,
             "loss/total/d": loss_disc,
             "loss/total/g": loss_gen_all,
+            "metrics/mse": calculate_mse(wave, y_hat),
+            "metrics/snr": calculate_snr(wave, y_hat),
         }
         image_dict = {
-            "spec/all/mel": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),
-            "spec/slice/real_mel": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
-            "spec/slice/fake_mel": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),
+            "mel/all": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),
+            "mel/slice/real": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
+            "mel/slice/fake": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),
+            "pitch/real": plot_pitch_to_numpy(pitch[0].data.cpu().numpy()),
+            "pitch/fake": plot_pitch_to_numpy(pitchf[0].data.cpu().numpy()),
         }
         summarize(writer=writer, tracking=epoch, scalars=scalar_dict, images=image_dict)
 
