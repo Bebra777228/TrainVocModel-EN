@@ -281,16 +281,16 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, loaders, logger, writers,
         scalar_dict = {
             "grad/norm_d": grad_norm_d,
             "grad/norm_g": grad_norm_g,
-            "total_loss/d": loss_disc,
-            "total_loss/g": loss_gen_all,
             "loss/g/fm": loss_fm,
             "loss/g/mel": loss_mel,
             "loss/g/kl": loss_kl,
+            "loss/total/d": loss_disc,
+            "loss/total/g": loss_gen_all,
         }
         image_dict = {
-            "spec/full_mel": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),
-            "spec/real_mel": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
-            "spec/generated_mel": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),
+            "spec/all/mel": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),
+            "spec/slice/real_mel": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
+            "spec/slice/fake_mel": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),
         }
         summarize(writer=writer, tracking=epoch, scalars=scalar_dict, images=image_dict)
 
