@@ -284,24 +284,25 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, loaders, logger, writers,
 
     if rank == 0 and epoch % hps.train.log_interval == 0:
         scalar_dict = {
-            "grad/norm_d": grad_norm_d,
-            "grad/norm_g": grad_norm_g,
-            "learning_rate/d": current_lr_d,
-            "learning_rate/g": current_lr_g,
-            "loss/g/fm": loss_fm,
-            "loss/g/mel": loss_mel,
-            "loss/g/kl": loss_kl,
-            "loss/total/d": loss_disc,
-            "loss/total/g": loss_gen_all,
-            "metrics/mse": F.mse_loss(wave, y_hat),
-            "metrics/snr": calculate_snr(wave, y_hat),
+            "grad/norm_d": grad_norm_d,                         # Норма градиентов для Дискриминатора
+            "grad/norm_g": grad_norm_g,                         # Норма градиентов для Генератора
+            "learning_rate/d": current_lr_d,                    # Скорость обучения Дискриминатора
+            "learning_rate/g": current_lr_g,                    # Скорость обучения Генератора
+            "loss/g/fm": loss_fm,                               # Потеря на основе совпадения признаков между реальными и сгенерированными данными
+            "loss/g/mel": loss_mel,                             # Потеря на основе мел-спектрограммы
+            "loss/g/kl": loss_kl,                               # Потеря на основе расхождения распределений в модели
+            "loss/total/d": loss_disc,                          # Общая потеря Дискриминатора
+            "loss/total/g": loss_gen_all,                       # Общая потеря Генератора
+            "metrics/mse_wave": F.mse_loss(y_hat, wave),        # Среднеквадратичная ошибка между реальными и сгенерированными аудиосигналами
+            "metrics/mse_pitch": F.mse_loss(pitchf, pitch),     # Среднеквадратичная ошибка между реальными и сгенерированными интонациями
+            "metrics/snr": calculate_snr(wave, y_hat),          # Соотношение сигнал/шум между реальными и сгенерированными аудиосигналами
         }
         image_dict = {
-            "mel/all": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),
-            "mel/slice/real": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
-            "mel/slice/fake": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),
-            "pitch/real": plot_pitch_to_numpy(pitch[0].data.cpu().numpy()),
-            "pitch/fake": plot_pitch_to_numpy(pitchf[0].data.cpu().numpy()),
+            "mel/all": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),                # Полная мел-спектрограмма
+            "mel/slice/real": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),       # Мел-спектрограмма реальных данных
+            "mel/slice/fake": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),   # Мел-спектрограмма сгенерированных данных
+            "pitch/real": plot_pitch_to_numpy(pitch[0].data.cpu().numpy()),                 # Интонация реальных данных
+            "pitch/fake": plot_pitch_to_numpy(pitchf[0].data.cpu().numpy()),                # Интонация сгенерированных данных
         }
         summarize(writer=writer, tracking=epoch, scalars=scalar_dict, images=image_dict)
 
