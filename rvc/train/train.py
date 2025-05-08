@@ -284,18 +284,24 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, loaders, logger, writers,
 
     if rank == 0 and epoch % hps.train.log_interval == 0:
         scalar_dict = {
-            "grad/norm_d": grad_norm_d,                         # Норма градиентов Дискриминатора
-            "grad/norm_g": grad_norm_g,                         # Норма градиентов Генератора
-            "learning_rate/d": current_lr_d,                    # Скорость обучения Дискриминатора
-            "learning_rate/g": current_lr_g,                    # Скорость обучения Генератора
-            "loss/g/fm": loss_fm,                               # Потеря на основе совпадения признаков между реальными и сгенерированными данными
-            "loss/g/mel": loss_mel,                             # Потеря на основе мел-спектрограммы
-            "loss/g/kl": loss_kl,                               # Потеря на основе расхождения распределений в модели
-            "loss/total/d": loss_disc,                          # Общая потеря Дискриминатора
-            "loss/total/g": loss_gen_all,                       # Общая потеря Генератора
-            "metrics/mse_wave": F.mse_loss(y_hat, wave),        # Среднеквадратичная ошибка между реальными и сгенерированными аудиосигналами
-            "metrics/mse_pitch": F.mse_loss(pitchf, pitch),     # Среднеквадратичная ошибка между реальными и сгенерированными интонациями
-            "metrics/snr": calculate_snr(wave, y_hat),          # Соотношение сигнал/шум между реальными и сгенерированными аудиосигналами
+            "grad/norm_d": grad_norm_d,                                                     # Норма градиентов Дискриминатора
+            "grad/norm_g": grad_norm_g,                                                     # Норма градиентов Генератора
+            "learning_rate/d": current_lr_d,                                                # Скорость обучения Дискриминатора
+            "learning_rate/g": current_lr_g,                                                # Скорость обучения Генератора
+            "loss/g/fm": loss_fm,                                                           # Потеря на основе совпадения признаков между реальными и сгенерированными данными
+            "loss/g/mel": loss_mel,                                                         # Потеря на основе мел-спектрограммы
+            "loss/g/kl": loss_kl,                                                           # Потеря на основе расхождения распределений в модели
+            "loss/total/d": loss_disc,                                                      # Общая потеря Дискриминатора
+            "loss/total/g": loss_gen_all,                                                   # Общая потеря Генератора
+            "metrics/mse_wave": F.mse_loss(y_hat, wave),                                    # Среднеквадратичная ошибка между реальными и сгенерированными аудиосигналами
+            "metrics/mse_pitch": F.mse_loss(pitchf, pitch),                                 # Среднеквадратичная ошибка между реальными и сгенерированными интонациями
+            "metrics/snr": calculate_snr(wave, y_hat),                                      # Соотношение сигнал/шум между реальными и сгенерированными аудиосигналами
+            "voice/energy": torch.mean(spec),                                               # Средняя энергия спектра аудиосигнала
+            "voice/pitch_std": torch.std(pitchf),                                           # Стандартное отклонение интонации
+            "voice/pitch_dynamic": (torch.max(pitchf) - torch.min(pitchf)),                 # Динамический диапазон интонации
+            "voice/voiced_ratio": (torch.sum(pitchf > 0) / pitchf.numel()),                 # Отношение числа голосовых сегментов к общему числу сегментов
+            "voice/spectral_flatness": torch.exp(torch.mean(torch.log(spec + 1e-7))),       # Спектральная плоскостность аудиосигнала
+            
         }
         image_dict = {
             "mel/all": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),                # Полная мел-спектрограмма
