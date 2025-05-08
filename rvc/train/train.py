@@ -284,8 +284,8 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, loaders, logger, writers,
 
     if rank == 0 and epoch % hps.train.log_interval == 0:
         scalar_dict = {
-            "grad/norm_d": grad_norm_d,                         # Норма градиентов для Дискриминатора
-            "grad/norm_g": grad_norm_g,                         # Норма градиентов для Генератора
+            "grad/norm_d": grad_norm_d,                         # Норма градиентов Дискриминатора
+            "grad/norm_g": grad_norm_g,                         # Норма градиентов Генератора
             "learning_rate/d": current_lr_d,                    # Скорость обучения Дискриминатора
             "learning_rate/g": current_lr_g,                    # Скорость обучения Генератора
             "loss/g/fm": loss_fm,                               # Потеря на основе совпадения признаков между реальными и сгенерированными данными
@@ -301,6 +301,7 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, loaders, logger, writers,
             "mel/all": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),                # Полная мел-спектрограмма
             "mel/slice/real": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),       # Мел-спектрограмма реальных данных
             "mel/slice/fake": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),   # Мел-спектрограмма сгенерированных данных
+            "mel/slice/wave": plot_spectrogram_to_numpy(wave[0].data.cpu().numpy()),        # Мел-спектрограмма реальных данных
             "pitch/real": plot_pitch_to_numpy(pitch[0].data.cpu().numpy()),                 # Интонация реальных данных
             "pitch/fake": plot_pitch_to_numpy(pitchf[0].data.cpu().numpy()),                # Интонация сгенерированных данных
         }
