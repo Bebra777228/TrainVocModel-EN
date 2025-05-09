@@ -34,15 +34,3 @@ def plot_pitch_to_numpy(pitch_values, figsize=(12, 3)):
     data = np.asarray(buf, dtype=np.uint8)
     plt.close(fig)
     return data
-
-def calculate_snr(real, gen, eps=1e-7):
-    """Вычисление Signal-to-Noise Ratio (SNR)."""
-    noise = real - gen
-    signal_power = torch.mean(real ** 2)
-    noise_power = torch.mean(noise ** 2)
-    return 10 * torch.log10(signal_power / (noise_power + eps))
-
-def calculate_mse(real_wave, generated_wave):
-    """Вычисление Mean Squared Error (MSE)."""
-    mse = F.mse_loss(real_wave, generated_wave)
-    return mse.item()
