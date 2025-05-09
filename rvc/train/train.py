@@ -293,6 +293,8 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, loaders, logger, writers,
             "loss/g/kl": loss_kl,                                                           # Потеря на основе расхождения распределений в модели
             "loss/total/d": loss_disc,                                                      # Общая потеря Дискриминатора
             "loss/total/g": loss_gen_all,                                                   # Общая потеря Генератора
+            "metrics/mse_wave": F.mse_loss(y_hat, wave),                                    # Среднеквадратичная ошибка между реальными и сгенерированными аудиосигналами
+            "metrics/mse_pitch": F.mse_loss(pitchf, pitch),                                 # Среднеквадратичная ошибка между реальными и сгенерированными интонациями
         }
         image_dict = {
             "mel/slice/real": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),       # Мел-спектрограмма реальных данных
