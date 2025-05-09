@@ -293,21 +293,10 @@ def train_and_evaluate(hps, rank, epoch, nets, optims, loaders, logger, writers,
             "loss/g/kl": loss_kl,                                                           # Потеря на основе расхождения распределений в модели
             "loss/total/d": loss_disc,                                                      # Общая потеря Дискриминатора
             "loss/total/g": loss_gen_all,                                                   # Общая потеря Генератора
-            "metrics/mse_wave": F.mse_loss(y_hat, wave),                                    # Среднеквадратичная ошибка между реальными и сгенерированными аудиосигналами
-            "metrics/mse_pitch": F.mse_loss(pitchf, pitch),                                 # Среднеквадратичная ошибка между реальными и сгенерированными интонациями
-            "metrics/snr": calculate_snr(wave, y_hat),                                      # Соотношение сигнал/шум между реальными и сгенерированными аудиосигналами
-            "voice/energy": torch.mean(spec),                                               # Средняя энергия спектра аудиосигнала
-            "voice/pitch_std": torch.std(pitchf),                                           # Стандартное отклонение интонации
-            "voice/pitch_dynamic": (torch.max(pitchf) - torch.min(pitchf)),                 # Динамический диапазон интонации
-            "voice/voiced_ratio": (torch.sum(pitchf > 0) / pitchf.numel()),                 # Отношение числа голосовых сегментов к общему числу сегментов
-            "voice/spectral_flatness": torch.exp(torch.mean(torch.log(spec + 1e-7))),       # Спектральная плоскостность аудиосигнала
-            
         }
         image_dict = {
-            "mel/all": plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),                # Полная мел-спектрограмма
             "mel/slice/real": plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),       # Мел-спектрограмма реальных данных
             "mel/slice/fake": plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()),   # Мел-спектрограмма сгенерированных данных
-            "mel/slice/wave": plot_spectrogram_to_numpy(wave[0].data.cpu().numpy()),        # Мел-спектрограмма реальных данных
             "pitch/real": plot_pitch_to_numpy(pitch[0].data.cpu().numpy()),                 # Интонация реальных данных
             "pitch/fake": plot_pitch_to_numpy(pitchf[0].data.cpu().numpy()),                # Интонация сгенерированных данных
         }
